@@ -1,0 +1,3348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zaina Medical Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* ---- Core palette (Milvus-inspired: deep navy + light blue/cyan) ---- */
+    --navy-950: #060a1f;
+    --navy-900: #0b1130;
+    --navy-800: #131a42;
+    --ink: #0b1130;
+    --ink-soft: #5b6478;
+    --paper: #f4f6fc;
+    --card: #ffffff;
+    --accent: #38bdf8;
+    --accent-dark: #0ea5e9;
+    --accent-bright: #7dd3fc;
+    --violet: #7c6cf6;
+    --border: #e2e6f3;
+    --error: #d64545;
+    /* ---- Maya blue ombre (animated) ---- */
+    --ombre-1: #d6ecff;
+    --ombre-2: #a9d9ff;
+    --ombre-3: #73c2fb;
+    --ombre-4: #4fa8e0;
+    --ombre-5: #3893cc;
+    --text-navy: #0b1130;
+    --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-display: "Space Grotesk", var(--font-body);
+    --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: var(--font-body);
+    background: var(--paper);
+  }
+
+  /* ---------- Welcome / landing screen ---------- */
+  #welcome-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: linear-gradient(120deg, var(--ombre-1), var(--ombre-2) 30%, var(--ombre-3) 55%, var(--ombre-4) 75%, var(--ombre-5));
+    background-size: 320% 320%;
+    animation: ombreShift 18s ease-in-out infinite;
+    color: var(--text-navy);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  @keyframes ombreShift {
+    0% { background-position: 0% 30%; }
+    50% { background-position: 100% 70%; }
+    100% { background-position: 0% 30%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #welcome-screen, #call-overlay { animation: none; }
+  }
+  #welcome-screen.hidden { display: none; }
+  #node-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    opacity: 0.55;
+  }
+  #welcome-nav {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 28px;
+    flex-shrink: 0;
+  }
+  #welcome-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+  #welcome-brand svg { width: 22px; height: 22px; color: var(--text-navy); }
+  #welcome-menu {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+  .welcome-menu-link {
+    background: none;
+    border: none;
+    color: rgba(11,17,48,0.72);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    padding: 4px 2px;
+    transition: color 0.15s ease;
+  }
+  .welcome-menu-link:hover { color: var(--text-navy); }
+  #welcome-lang-toggle {
+    display: flex;
+    gap: 3px;
+    background: rgba(11,17,48,0.08);
+    border: 1px solid rgba(11,17,48,0.16);
+    border-radius: 999px;
+    padding: 3px;
+  }
+  .welcome-lang-btn {
+    border: none;
+    background: transparent;
+    color: rgba(11,17,48,0.65);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 6px 13px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .welcome-lang-btn.active { background: var(--text-navy); color: #fff; }
+
+  #welcome-auth-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  #welcome-login-btn {
+    background: var(--text-navy);
+    border: none;
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  #welcome-login-btn:hover { background: var(--accent-dark); transform: translateY(-1px); }
+  #welcome-user-chip {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: rgba(11,17,48,0.08);
+    border: 1px solid rgba(11,17,48,0.16);
+    border-radius: 999px;
+    padding: 5px 14px 5px 6px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    color: var(--text-navy);
+    transition: background 0.15s ease;
+  }
+  #welcome-user-chip:hover { background: rgba(11,17,48,0.14); }
+  #welcome-user-chip.visible { display: flex; }
+  #welcome-user-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  #welcome-user-email {
+    font-size: 12.5px;
+    font-weight: 600;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    #welcome-user-email { max-width: 100px; }
+  }
+
+  @media (max-width: 640px) {
+    #welcome-nav { flex-wrap: wrap; row-gap: 12px; justify-content: center; }
+    #welcome-menu { order: 3; width: 100%; justify-content: center; gap: 26px; }
+  }
+
+  #welcome-hero {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px 24px 48px;
+    margin: 0 auto;
+    max-width: 760px;
+    width: 100%;
+  }
+  #welcome-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--text-navy);
+    margin-bottom: 18px;
+  }
+  #welcome-headline {
+    font-family: var(--font-display);
+    font-size: clamp(30px, 5.4vw, 50px);
+    line-height: 1.12;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+    color: var(--text-navy);
+  }
+  #welcome-subhead {
+    font-size: 16px;
+    line-height: 1.6;
+    color: rgba(11,17,48,0.78);
+    max-width: 540px;
+    margin: 0 0 44px;
+  }
+
+  #welcome-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+  }
+  .welcome-card {
+    position: relative;
+    text-align: left;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(11,17,48,0.14);
+    border-radius: 18px;
+    padding: 26px 24px;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text-navy);
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+  .welcome-card:hover, .welcome-card:focus-visible {
+    transform: translateY(-3px);
+    border-color: var(--text-navy);
+    background: rgba(255,255,255,0.75);
+    outline: none;
+  }
+  .welcome-card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--violet));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .welcome-card-icon svg { width: 20px; height: 20px; color: #fff; }
+  .welcome-card-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-navy);
+  }
+  .welcome-card-desc {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: rgba(11,17,48,0.68);
+    margin-bottom: 18px;
+  }
+  .welcome-card-cta {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-navy);
+  }
+  #welcome-disclaimer {
+    margin-top: 32px;
+    font-size: 12px;
+    color: rgba(11,17,48,0.55);
+  }
+
+  #scroll-cue {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: rgba(11,17,48,0.6);
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  #scroll-cue svg { width: 20px; height: 20px; animation: scrollbounce 1.8s ease-in-out infinite; }
+  #scroll-cue:hover { color: var(--text-navy); }
+  @keyframes scrollbounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(6px); }
+  }
+
+  #services-section {
+    position: relative;
+    z-index: 2;
+    padding: 20px 24px 88px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  #services-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    color: var(--text-navy);
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  #services-title {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.6vw, 32px);
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 40px;
+    color: var(--text-navy);
+  }
+  #services-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .services-col {
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(11,17,48,0.14);
+    border-radius: 18px;
+    padding: 26px 24px;
+  }
+  .services-col-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+  .services-col-yes .services-col-icon { background: rgba(56, 189, 248, 0.2); color: var(--accent-dark); }
+  .services-col-no .services-col-icon { background: rgba(214, 69, 69, 0.14); color: var(--error); }
+  .services-col-icon svg { width: 18px; height: 18px; }
+  .services-col h3 { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin: 0 0 14px; color: var(--text-navy); }
+  .services-col ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+  .services-col li {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: rgba(11,17,48,0.72);
+    padding-left: 22px;
+    position: relative;
+  }
+  .services-col-yes li::before { content: "\2713"; position: absolute; left: 0; color: var(--accent-dark); font-weight: 700; }
+  .services-col-no li::before { content: "\2715"; position: absolute; left: 0; color: var(--error); font-weight: 700; }
+
+  @media (max-width: 620px) {
+    #welcome-cards { grid-template-columns: 1fr; }
+    #welcome-hero { padding-top: 8px; }
+    #services-grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #node-canvas { display: none; }
+  }
+
+  /* ---------- Info page (About us / FAQ) — separate page with back button ---------- */
+  #info-page {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: var(--paper);
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  #info-page.visible { display: flex; }
+  #info-page-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 24px;
+    background: linear-gradient(120deg, var(--ombre-1), var(--ombre-2), var(--ombre-3));
+    background-size: 220% 220%;
+    animation: ombreShift 14s ease-in-out infinite;
+    color: var(--text-navy);
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(11, 17, 48, 0.12);
+  }
+  #info-back-btn {
+    background: rgba(11,17,48,0.1);
+    border: 1px solid rgba(11,17,48,0.25);
+    color: var(--text-navy);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+  }
+  #info-back-btn:hover { background: rgba(11,17,48,0.18); }
+  #info-back-btn svg { width: 18px; height: 18px; }
+  #info-page-title { font-family: var(--font-display); font-size: 17px; font-weight: 700; flex: 1; color: var(--text-navy); }
+  #info-modal-tabs { display: flex; gap: 6px; background: rgba(11,17,48,0.1); border-radius: 999px; padding: 4px; flex-shrink: 0; }
+  .info-tab-btn {
+    border: none;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(11,17,48,0.75);
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+  }
+  .info-tab-btn.active { background: var(--text-navy); color: #fff; }
+  #info-page-body {
+    padding: 32px 24px 60px;
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+    flex: 1;
+  }
+  .info-panel { display: none; }
+  .info-panel.active { display: block; }
+  .info-panel-heading {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 18px;
+  }
+  #info-panel-about { font-size: 14.5px; line-height: 1.7; color: var(--ink); }
+  #info-panel-about p { margin: 0 0 14px; }
+  #info-panel-about p:last-child { margin-bottom: 0; }
+  .faq-item { border-bottom: 1px solid var(--border); padding: 14px 0; }
+  .faq-item:first-child { padding-top: 0; }
+  .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .faq-item summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--ink);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary::after {
+    content: "+";
+    font-size: 18px;
+    color: var(--accent);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+  .faq-item[open] summary::after { transform: rotate(45deg); }
+  .faq-item p {
+    margin: 10px 0 0;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+  }
+
+  #chat-page {
+    height: 100vh;
+    height: 100dvh;
+    display: none;
+    flex-direction: column;
+  }
+  #chat-page.visible { display: flex; }
+
+  /* ---------- Header ---------- */
+  #chat-header {
+    background: linear-gradient(120deg, var(--ombre-1), var(--ombre-2), var(--ombre-3));
+    background-size: 220% 220%;
+    animation: ombreShift 14s ease-in-out infinite;
+    color: var(--text-navy);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(11, 17, 48, 0.12);
+  }
+  #back-btn {
+    background: rgba(11,17,48,0.1);
+    border: 1px solid rgba(11,17,48,0.25);
+    color: var(--text-navy);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+  }
+  #back-btn:hover { background: rgba(11,17,48,0.18); }
+  #back-btn svg { width: 18px; height: 18px; }
+  #bot-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(11,17,48,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--text-navy);
+  }
+  #bot-avatar svg { width: 24px; height: 24px; }
+  #header-text { flex: 1; min-width: 0; }
+  #chat-header .title { font-family: var(--font-display); font-size: 17px; font-weight: 700; letter-spacing: 0.01em; color: var(--text-navy); }
+  #chat-header .subtitle {
+    font-size: 12.5px;
+    opacity: 0.85;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-navy);
+  }
+  #status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-dark);
+    box-shadow: 0 0 0 3px rgba(11, 17, 48, 0.12);
+  }
+
+  #end-chat-btn {
+    background: rgba(11,17,48,0.1);
+    border: 1px solid rgba(11,17,48,0.25);
+    color: var(--text-navy);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+  }
+  #end-chat-btn:hover:not(:disabled) { background: rgba(11,17,48,0.18); }
+  #end-chat-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #end-chat-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  #end-chat-btn .label { display: inline; }
+  @media (max-width: 480px) {
+    #end-chat-btn .label { display: none; }
+    #end-chat-btn { padding: 9px; }
+  }
+
+  /* ---------- Call button (header) ---------- */
+  #call-btn {
+    background: rgba(11,17,48,0.1);
+    border: 1px solid rgba(11,17,48,0.25);
+    color: var(--text-navy);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+  }
+  #call-btn:hover:not(:disabled) { background: rgba(11,17,48,0.18); }
+  #call-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #call-btn svg { width: 18px; height: 18px; }
+
+  /* ---------- Call overlay (full screen "in call" UI) ---------- */
+  #call-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: linear-gradient(150deg, var(--ombre-1), var(--ombre-2) 45%, var(--ombre-3) 70%, var(--ombre-4));
+    background-size: 300% 300%;
+    animation: ombreShift 16s ease-in-out infinite;
+    color: var(--text-navy);
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 48px 24px 40px;
+    text-align: center;
+  }
+  #call-overlay.visible { display: flex; }
+  #call-back-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(11,17,48,0.1);
+    border: 1px solid rgba(11,17,48,0.24);
+    color: var(--text-navy);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+  }
+  #call-back-btn:hover { background: rgba(11,17,48,0.2); }
+  #call-back-btn svg { width: 17px; height: 17px; }
+  #call-top { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 20px; }
+  #call-name { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--text-navy); }
+  #call-status { font-size: 14px; opacity: 0.8; min-height: 18px; color: var(--text-navy); }
+  #call-lang-toggle {
+    display: flex;
+    gap: 4px;
+    background: rgba(11,17,48,0.1);
+    border-radius: 999px;
+    padding: 3px;
+    margin-top: 4px;
+  }
+  .call-lang-btn {
+    border: none;
+    background: transparent;
+    color: rgba(11,17,48,0.72);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .call-lang-btn.active { background: var(--text-navy); color: #fff; }
+  .call-lang-btn:disabled { cursor: not-allowed; opacity: 0.6; }
+  #call-avatar-ring {
+    width: 128px;
+    height: 128px;
+    border-radius: 50%;
+    background: rgba(11, 17, 48, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 28px 0;
+    position: relative;
+  }
+  #call-avatar-ring.pulse::before {
+    content: "";
+    position: absolute;
+    inset: -14px;
+    border-radius: 50%;
+    border: 2px solid rgba(11, 17, 48, 0.3);
+    animation: callpulse 1.6s ease-out infinite;
+  }
+  @keyframes callpulse {
+    0% { transform: scale(0.85); opacity: 0.9; }
+    100% { transform: scale(1.35); opacity: 0; }
+  }
+  #call-avatar-circle {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: var(--text-navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #call-avatar-circle svg { width: 46px; height: 46px; color: #fff; }
+  #call-caption {
+    max-width: 480px;
+    min-height: 48px;
+    font-size: 15px;
+    line-height: 1.5;
+    opacity: 0.9;
+    padding: 0 12px;
+    color: var(--text-navy);
+  }
+  #call-bottom { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  #call-hint { font-size: 12px; opacity: 0.65; max-width: 320px; color: var(--text-navy); }
+  #call-hangup-btn {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: var(--error);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(214, 69, 69, 0.5);
+    transition: transform 0.12s ease;
+  }
+  #call-hangup-btn:hover { transform: scale(1.06); }
+  #call-hangup-btn svg { width: 26px; height: 26px; }
+
+  /* ---------- Messages ---------- */
+  #chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin: 6px 0;
+  }
+  .row.user { justify-content: flex-end; }
+  .row.system { justify-content: center; }
+
+  .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .avatar.bot-avatar-sm {
+    background: var(--accent);
+    color: white;
+  }
+  .avatar.bot-avatar-sm svg { width: 16px; height: 16px; }
+  .row.user .avatar, .row.system .avatar { display: none; }
+
+  .msg {
+    max-width: 70%;
+    padding: 11px 15px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .msg.bot {
+    background: var(--card);
+    color: var(--ink);
+    border-bottom-left-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .msg.user {
+    background: var(--accent);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.error {
+    background: #fbeae5;
+    color: var(--error);
+    border-bottom-left-radius: 4px;
+    border: 1px solid #f0c9bd;
+  }
+  .msg.system {
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 6px 10px;
+    max-width: 100%;
+    text-align: center;
+  }
+
+  /* file chip inside a user message bubble */
+  .file-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .msg.bot .file-chip {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    color: var(--ink);
+  }
+  .file-chip svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .file-chip .fname {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .typing-row { display: flex; align-items: flex-end; gap: 8px; margin: 6px 0; }
+  .typing {
+    display: flex;
+    gap: 4px;
+    padding: 14px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+  }
+  .typing span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-soft);
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* ---------- Attachment preview above input ---------- */
+  #attachment-preview {
+    display: none;
+    max-width: 760px;
+    margin: 0 auto 10px;
+    align-items: center;
+    gap: 10px;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 12px;
+  }
+  #attachment-preview.visible { display: flex; }
+  #attachment-preview .thumb {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  #attachment-preview .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  #attachment-preview .thumb svg { width: 18px; height: 18px; }
+  #attachment-preview .meta { flex: 1; min-width: 0; }
+  #attachment-preview .meta .name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #attachment-preview .meta .hint {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  #attachment-remove {
+    background: transparent;
+    border: none;
+    color: var(--ink-soft);
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  #attachment-remove:hover { background: #e7edff; color: var(--error); }
+  #attachment-remove svg { width: 16px; height: 16px; }
+
+  /* ---------- Input bar ---------- */
+  #chat-input-bar {
+    border-top: 1px solid var(--border);
+    background: var(--card);
+    padding: 16px 24px;
+    flex-shrink: 0;
+  }
+  #chat-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  #attach-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 1.5px solid var(--border);
+    color: var(--accent-dark);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  #attach-btn:hover:not(:disabled) { background: #e7edff; border-color: var(--accent); }
+  #attach-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #attach-btn svg { width: 20px; height: 20px; }
+  #file-input { display: none; }
+  #chat-input {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 24px;
+    padding: 12px 18px;
+    font-size: 15px;
+    font-family: inherit;
+    resize: none;
+    max-height: 140px;
+    outline: none;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  #chat-input:focus { border-color: var(--accent); }
+  #chat-input:disabled { opacity: 0.6; cursor: not-allowed; }
+  #chat-send {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  #chat-send:hover:not(:disabled) { background: var(--accent-dark); transform: scale(1.04); }
+  #chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  #chat-send svg { width: 20px; height: 20px; }
+
+  #input-hint {
+    max-width: 760px;
+    margin: 8px auto 0;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    #chat-messages { padding: 16px; }
+    #chat-input-bar { padding: 12px 16px; }
+    .msg { max-width: 84%; }
+  }
+
+  /* ---------- Profile page ---------- */
+  #profile-page {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: var(--paper);
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  #profile-page.visible { display: flex; }
+  #profile-page-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 24px;
+    background: linear-gradient(120deg, var(--ombre-1), var(--ombre-2), var(--ombre-3));
+    background-size: 220% 220%;
+    animation: ombreShift 14s ease-in-out infinite;
+    color: var(--text-navy);
+    flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(11, 17, 48, 0.12);
+  }
+  #profile-back-btn {
+    background: rgba(11,17,48,0.1);
+    border: 1px solid rgba(11,17,48,0.25);
+    color: var(--text-navy);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+  }
+  #profile-back-btn:hover { background: rgba(11,17,48,0.18); }
+  #profile-back-btn svg { width: 18px; height: 18px; }
+  #profile-page-title { font-family: var(--font-display); font-size: 17px; font-weight: 700; flex: 1; color: var(--text-navy); }
+  #profile-page-body {
+    padding: 40px 24px 60px;
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+    flex: 1;
+  }
+  #profile-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  #profile-avatar-large {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  #profile-email-display {
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink);
+    word-break: break-all;
+  }
+  #profile-email-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .profile-action-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    font-weight: 600;
+    padding: 13px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  #profile-switch-btn {
+    background: white;
+    border: 1.5px solid var(--border);
+    color: var(--ink);
+  }
+  #profile-switch-btn:hover { border-color: var(--accent); background: #f7f9fd; }
+  #profile-logout-btn {
+    background: transparent;
+    border: 1.5px solid var(--error);
+    color: var(--error);
+  }
+  #profile-logout-btn:hover { background: rgba(214, 69, 69, 0.08); }
+  #profile-note {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    text-align: center;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+
+  /* ---------- Auth modal (sign up / log in) ---------- */
+  #auth-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 17, 48, 0.6);
+    align-items: center;
+    justify-content: center;
+    z-index: 70;
+    padding: 20px;
+  }
+  #auth-modal-overlay.visible { display: flex; }
+  #auth-modal {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 28px 26px;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(20, 40, 34, 0.25);
+  }
+  #auth-modal h2 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    color: var(--ink);
+    font-family: var(--font-body);
+  }
+  #auth-modal-subtext {
+    margin: 0 0 18px;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    font-family: var(--font-body);
+  }
+  #auth-google-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  #auth-google-btn:hover { background: #f7f9fd; border-color: var(--accent); }
+  #auth-google-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  #auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-family: var(--font-body);
+  }
+  #auth-divider::before, #auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  #auth-form { display: flex; flex-direction: column; }
+  #auth-email-input, #auth-password-input {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 15px;
+    font-family: var(--font-body);
+    outline: none;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  #auth-email-input:focus, #auth-password-input:focus { border-color: var(--accent); }
+  #auth-error {
+    font-size: 12.5px;
+    color: var(--error);
+    min-height: 16px;
+    margin-bottom: 6px;
+    font-family: var(--font-body);
+  }
+  #auth-info {
+    font-size: 12.5px;
+    color: var(--accent-dark);
+    min-height: 16px;
+    margin-bottom: 6px;
+    font-family: var(--font-body);
+  }
+  #auth-submit-btn {
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 11px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    margin-top: 4px;
+  }
+  #auth-submit-btn:hover { background: var(--accent-dark); }
+  #auth-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  #auth-switch-line {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    font-family: var(--font-body);
+    color: var(--ink-soft);
+  }
+  #auth-switch-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent-dark);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 0 0 4px;
+    text-decoration: underline;
+  }
+
+  /* ---------- Footer ---------- */
+  #site-footer {
+    position: relative;
+    z-index: 2;
+    border-top: 1px solid rgba(11,17,48,0.16);
+    padding: 36px 24px 22px;
+    margin-top: 24px;
+  }
+  #footer-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  #footer-brand-name {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-navy);
+  }
+  #footer-brand-name svg { width: 20px; height: 20px; color: var(--text-navy); }
+  #footer-tagline {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: rgba(11,17,48,0.65);
+    max-width: 280px;
+    line-height: 1.5;
+  }
+  #footer-links {
+    display: flex;
+    gap: 22px;
+  }
+  .footer-link {
+    background: none;
+    border: none;
+    color: rgba(11,17,48,0.72);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    padding: 4px 2px;
+    transition: color 0.15s ease;
+  }
+  .footer-link:hover { color: var(--text-navy); }
+  #footer-bottom {
+    max-width: 900px;
+    margin: 28px auto 0;
+    padding-top: 18px;
+    border-top: 1px solid rgba(11,17,48,0.1);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 11.5px;
+    color: rgba(11,17,48,0.55);
+  }
+  @media (max-width: 560px) {
+    #footer-inner { flex-direction: column; }
+    #footer-bottom { flex-direction: column; text-align: center; }
+  }
+  #footer-admin-link {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    font-size: 10.5px;
+    color: rgba(11,17,48,0.38);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  #footer-admin-link:hover { color: rgba(11,17,48,0.6); text-decoration: underline; }
+
+  /* ================================================================
+     ADMIN LOGIN PAGE
+     ================================================================ */
+  #admin-login-page {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: var(--navy-950);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #admin-login-page.visible { display: flex; }
+  #admin-login-back {
+    position: absolute;
+    top: 22px;
+    left: 22px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #cfe0ff;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  #admin-login-back:hover { background: rgba(255,255,255,0.14); }
+  #admin-login-back svg { width: 17px; height: 17px; }
+  #admin-login-card {
+    background: var(--navy-900);
+    border: 1px solid rgba(125,211,252,0.18);
+    border-radius: 18px;
+    padding: 34px 30px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+  }
+  #admin-login-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(125,211,252,0.1);
+    border: 1px solid rgba(125,211,252,0.25);
+    color: var(--accent-bright);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+  }
+  #admin-login-badge svg { width: 12px; height: 12px; }
+  #admin-login-card h2 {
+    margin: 0 0 6px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: #f2f6ff;
+  }
+  #admin-login-card p {
+    margin: 0 0 22px;
+    font-size: 13px;
+    color: rgba(210,222,250,0.6);
+    line-height: 1.5;
+  }
+  #admin-login-form { display: flex; flex-direction: column; }
+  #admin-username-input, #admin-password-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.14);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 14.5px;
+    font-family: var(--font-body);
+    outline: none;
+    color: #f2f6ff;
+    margin-bottom: 10px;
+  }
+  #admin-username-input::placeholder, #admin-password-input::placeholder { color: rgba(210,222,250,0.35); }
+  #admin-username-input:focus, #admin-password-input:focus { border-color: var(--accent); }
+  #admin-login-error {
+    font-size: 12.5px;
+    color: #ff8a8a;
+    min-height: 16px;
+    margin-bottom: 6px;
+  }
+  #admin-login-submit {
+    background: var(--accent);
+    border: none;
+    color: #04141f;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    margin-top: 6px;
+  }
+  #admin-login-submit:hover { background: var(--accent-bright); }
+
+  /* ================================================================
+     ADMIN DASHBOARD
+     ================================================================ */
+  #admin-dashboard-page {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: var(--navy-950);
+    flex-direction: column;
+    overflow-y: auto;
+    color: #eaf1ff;
+  }
+  #admin-dashboard-page.visible { display: flex; }
+  #admin-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 26px;
+    background: rgba(11,17,48,0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(125,211,252,0.16);
+    flex-shrink: 0;
+  }
+  #admin-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    color: #f2f6ff;
+  }
+  #admin-header-brand svg { width: 20px; height: 20px; color: var(--accent-bright); }
+  #admin-header-tag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: var(--accent-bright);
+    background: rgba(125,211,252,0.12);
+    border: 1px solid rgba(125,211,252,0.25);
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  #admin-header-spacer { flex: 1; }
+  #admin-logout-btn {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.16);
+    color: #eaf1ff;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  #admin-logout-btn:hover { background: rgba(255,255,255,0.14); }
+  #admin-body {
+    max-width: 1080px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 30px 26px 70px;
+    flex: 1;
+  }
+  #admin-body h1 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    margin: 0 0 4px;
+    color: #f7fafe;
+  }
+  #admin-body-sub {
+    font-size: 13.5px;
+    color: rgba(210,222,250,0.55);
+    margin: 0 0 26px;
+  }
+  #admin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 30px;
+  }
+  @media (max-width: 800px) { #admin-stats-grid { grid-template-columns: repeat(2, 1fr); } }
+  .admin-stat-card {
+    background: linear-gradient(155deg, rgba(56,189,248,0.12), rgba(124,108,246,0.08));
+    border: 1px solid rgba(125,211,252,0.18);
+    border-radius: 16px;
+    padding: 18px 18px 16px;
+  }
+  .admin-stat-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: rgba(210,222,250,0.55);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .admin-stat-value {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 700;
+    color: #f7fafe;
+  }
+  .admin-stat-delta {
+    font-size: 11.5px;
+    margin-top: 6px;
+    color: #7ee0a8;
+  }
+  .admin-stat-delta.down { color: #ff9a9a; }
+  .admin-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(125,211,252,0.14);
+    border-radius: 16px;
+    margin-bottom: 22px;
+    overflow: hidden;
+  }
+  .admin-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(125,211,252,0.12);
+  }
+  .admin-section-head h2 {
+    font-family: var(--font-display);
+    font-size: 15.5px;
+    margin: 0;
+    color: #f2f6ff;
+  }
+  .admin-section-head p {
+    font-size: 12px;
+    color: rgba(210,222,250,0.5);
+    margin: 3px 0 0;
+  }
+  .admin-table-wrap { overflow-x: auto; }
+  table.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.admin-table th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(210,222,250,0.45);
+    padding: 10px 20px;
+    white-space: nowrap;
+  }
+  table.admin-table td {
+    padding: 12px 20px;
+    border-top: 1px solid rgba(125,211,252,0.08);
+    color: #dce7fb;
+    white-space: nowrap;
+  }
+  table.admin-table tr:hover td { background: rgba(125,211,252,0.04); }
+  .admin-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background: rgba(124,108,246,0.18);
+    color: var(--accent-bright);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    margin-right: 8px;
+  }
+  .admin-user-cell { display: flex; align-items: center; gap: 10px; }
+  .admin-user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--violet));
+    color: #04141f;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  #admin-mock-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(233,181,60,0.1);
+    border: 1px solid rgba(233,181,60,0.3);
+    color: #f0c674;
+    font-size: 12px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    margin-bottom: 22px;
+  }
+  #admin-mock-banner svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+</style>
+</head>
+<body>
+
+<div id="welcome-screen">
+  <canvas id="node-canvas"></canvas>
+  <div id="welcome-nav">
+    <div id="welcome-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="5" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="19" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/>
+        <circle cx="5" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="19" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+        <path d="M5 6 12 12M19 6 12 12M5 18 12 12M19 18 12 12"/>
+      </svg>
+      <span>Zaina Medical</span>
+    </div>
+    <div id="welcome-menu">
+      <button type="button" class="welcome-menu-link" id="link-about" data-i18n="navAbout">About us</button>
+      <button type="button" class="welcome-menu-link" id="link-faq" data-i18n="navFaq">FAQ</button>
+    </div>
+    <div id="welcome-lang-toggle">
+      <button type="button" class="welcome-lang-btn active" id="welcome-lang-en" data-lang="en">EN</button>
+      <button type="button" class="welcome-lang-btn" id="welcome-lang-ar" data-lang="ar">AR</button>
+    </div>
+    <div id="welcome-auth-status">
+      <button type="button" id="welcome-login-btn">Log in</button>
+      <button type="button" id="welcome-user-chip">
+        <span id="welcome-user-avatar"></span>
+        <span id="welcome-user-email"></span>
+      </button>
+    </div>
+  </div>
+
+  <div id="welcome-hero">
+    <div id="welcome-eyebrow" data-i18n="eyebrow">MEDICAL AI, GROUNDED IN EVIDENCE</div>
+    <h1 id="welcome-headline" data-i18n="headline">Understand your health,<br>one question at a time.</h1>
+    <p id="welcome-subhead" data-i18n="subhead">Ask about symptoms, upload a lab report, or talk it through out loud — answered from trusted Altibbi medical articles, in English or Arabic.</p>
+
+    <div id="welcome-cards">
+      <button type="button" class="welcome-card" id="card-chat">
+        <div class="welcome-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div class="welcome-card-title" data-i18n="chatTitle">Chat with the assistant</div>
+        <div class="welcome-card-desc" data-i18n="chatDesc">Type your questions or attach a lab result — get clear, sourced answers back in writing.</div>
+        <div class="welcome-card-cta" data-i18n="chatCta">Start chatting →</div>
+      </button>
+
+      <button type="button" class="welcome-card" id="card-call">
+        <div class="welcome-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <div class="welcome-card-title" data-i18n="callTitle">Talk to a Dr. Assistant</div>
+        <div class="welcome-card-desc" data-i18n="callDesc">Have a real-time voice conversation — speak naturally and hear the answer spoken back.</div>
+        <div class="welcome-card-cta" data-i18n="callCta">Start the call →</div>
+      </button>
+    </div>
+
+    <div id="welcome-disclaimer" data-i18n="disclaimer">Not a diagnosis. Always confirm with a licensed doctor.</div>
+
+    <button type="button" id="scroll-cue" aria-label="Scroll to see what this assistant can help with">
+      <span data-i18n="scrollCue">See what we can help with</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+  </div>
+
+  <section id="services-section">
+    <div id="services-eyebrow" data-i18n="servicesEyebrow">WHAT THIS ASSISTANT CAN DO</div>
+    <h2 id="services-title" data-i18n="servicesTitle">Know before you ask</h2>
+    <div id="services-grid">
+      <div class="services-col services-col-yes">
+        <div class="services-col-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <h3 data-i18n="canTitle">You can ask about</h3>
+        <ul>
+          <li data-i18n="canItem1">General symptoms and possible causes</li>
+          <li data-i18n="canItem2">Understanding lab results and test reports</li>
+          <li data-i18n="canItem3">General medication information</li>
+          <li data-i18n="canItem4">Preventive health and lifestyle guidance</li>
+          <li data-i18n="canItem5">Explaining medical terms in plain language</li>
+        </ul>
+      </div>
+      <div class="services-col services-col-no">
+        <div class="services-col-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </div>
+        <h3 data-i18n="cantTitle">It can't help with</h3>
+        <ul>
+          <li data-i18n="cantItem1">Diagnosing a condition</li>
+          <li data-i18n="cantItem2">Prescribing or adjusting medication doses</li>
+          <li data-i18n="cantItem3">Medical emergencies — call your local emergency number</li>
+          <li data-i18n="cantItem4">Replacing an in-person exam by a licensed doctor</li>
+          <li data-i18n="cantItem5">Accessing your personal medical records</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer id="site-footer">
+    <div id="footer-inner">
+      <div id="footer-brand">
+        <div id="footer-brand-name">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="5" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+            <circle cx="19" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+            <circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/>
+            <circle cx="5" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+            <circle cx="19" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+            <path d="M5 6 12 12M19 6 12 12M5 18 12 12M19 18 12 12"/>
+          </svg>
+          <span>Zaina Medical</span>
+        </div>
+        <p id="footer-tagline" data-i18n="footerTagline">Grounded medical answers, in the language you're comfortable in.</p>
+      </div>
+      <div id="footer-links">
+        <button type="button" class="footer-link" id="footer-link-about" data-i18n="navAbout">About us</button>
+        <button type="button" class="footer-link" id="footer-link-faq" data-i18n="navFaq">FAQ</button>
+      </div>
+    </div>
+    <div id="footer-bottom">
+      <span data-i18n="footerDisclaimer">Not a diagnosis. Always confirm with a licensed doctor.</span>
+      <span id="footer-copyright">&copy; <span id="footer-year"></span> Zaina Medical &nbsp;·&nbsp; <button type="button" id="footer-admin-link">Admin</button></span>
+    </div>
+  </footer>
+</div>
+
+<div id="info-page">
+  <div id="info-page-header">
+    <button type="button" id="info-back-btn" aria-label="Back to home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+    <div id="info-page-title">About us</div>
+    <div id="info-modal-tabs">
+      <button type="button" class="info-tab-btn active" data-tab="about" data-i18n="navAbout">About us</button>
+      <button type="button" class="info-tab-btn" data-tab="faq" data-i18n="navFaq">FAQ</button>
+    </div>
+  </div>
+  <div id="info-page-body">
+    <div class="info-panel active" id="info-panel-about">
+      <h1 class="info-panel-heading" data-i18n="navAbout">About us</h1>
+      <p data-i18n="aboutP1">Zaina Medical is an assistant that helps people understand what's happening with their health before they see a doctor, in the language they're most comfortable in.</p>
+      <p data-i18n="aboutP2">Every answer is grounded in real medical content, not invented. Questions are matched against a library of medical articles from Altibbi, one of the largest Arabic health platforms, using semantic search so responses stay close to trustworthy source material.</p>
+      <p data-i18n="aboutP3">It's built to inform, not replace medical care. Think of it as a starting point for understanding symptoms, lab results, and general health questions — always confirm anything important with a licensed doctor.</p>
+    </div>
+    <div class="info-panel" id="info-panel-faq">
+      <h1 class="info-panel-heading" data-i18n="navFaq">FAQ</h1>
+      <details class="faq-item" open>
+        <summary data-i18n="faqQ1">What can I ask the assistant?</summary>
+        <p data-i18n="faqA1">Ask about symptoms, general health topics, medication information, or attach a lab result and get help understanding it in plain language.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faqQ2">What can't it do?</summary>
+        <p data-i18n="faqA2">It can't diagnose conditions, prescribe medication, or handle emergencies. For urgent symptoms, contact your local emergency number immediately.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faqQ3">Where do the answers come from?</summary>
+        <p data-i18n="faqA3">Responses are grounded in Altibbi's medical articles, retrieved for each question using semantic search, so answers stay close to real, reviewed medical content.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faqQ4">Is my conversation private?</summary>
+        <p data-i18n="faqA4">Each chat is tied to a temporary session, not a permanent account. If you request a summary, it's emailed to your sign-in address.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faqQ5">Which languages are supported?</summary>
+        <p data-i18n="faqA5">You can chat or talk in English or Arabic — switch anytime from the call screen or the language toggle.</p>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faqQ6">Can I upload a lab result?</summary>
+        <p data-i18n="faqA6">Yes — attach an image or PDF up to 8MB and the assistant will walk you through it.</p>
+      </details>
+    </div>
+  </div>
+</div>
+
+<div id="profile-page">
+  <div id="profile-page-header">
+    <button type="button" id="profile-back-btn" aria-label="Back to home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+    <div id="profile-page-title">Your account</div>
+  </div>
+  <div id="profile-page-body">
+    <div id="profile-card">
+      <div id="profile-avatar-large"></div>
+      <div id="profile-email-label">Signed in as</div>
+      <div id="profile-email-display"></div>
+    </div>
+    <button type="button" class="profile-action-btn" id="profile-switch-btn">Switch account</button>
+    <button type="button" class="profile-action-btn" id="profile-logout-btn">Log out</button>
+    <div id="profile-note">Chat summaries are sent to this email address. Log out to sign in with a different account.</div>
+  </div>
+</div>
+
+<!-- ================= ADMIN LOGIN ================= -->
+<div id="admin-login-page">
+  <button type="button" id="admin-login-back" aria-label="Back to home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+  </button>
+  <div id="admin-login-card">
+    <div id="admin-login-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      ADMIN ACCESS
+    </div>
+    <h2>Admin sign in</h2>
+    <p>Restricted area. Staff credentials only.</p>
+    <form id="admin-login-form">
+      <input type="email" id="admin-username-input" placeholder="Admin email" autocomplete="username" />
+      <input type="password" id="admin-password-input" placeholder="Password" autocomplete="current-password" />
+      <div id="admin-login-error"></div>
+      <button type="submit" id="admin-login-submit">Log in</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= ADMIN DASHBOARD ================= -->
+<div id="admin-dashboard-page">
+  <div id="admin-header">
+    <div id="admin-header-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="5" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="19" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/>
+        <circle cx="5" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+        <circle cx="19" cy="18" r="1.6" fill="currentColor" stroke="none"/>
+        <path d="M5 6 12 12M19 6 12 12M5 18 12 12M19 18 12 12"/>
+      </svg>
+      <span>Zaina Medical</span>
+    </div>
+    <div id="admin-header-tag">ADMIN</div>
+    <div id="admin-header-spacer"></div>
+    <button type="button" id="admin-logout-btn">Log out</button>
+  </div>
+
+  <div id="admin-body">
+    <h1>Dashboard</h1>
+    <p id="admin-body-sub">Usage and account overview across all users.</p>
+
+    <div id="admin-mock-banner" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+      <span id="admin-banner-text">Couldn't load live data from Supabase — check the console.</span>
+    </div>
+
+    <div id="admin-stats-grid">
+      <div class="admin-stat-card">
+        <div class="admin-stat-label">Total users</div>
+        <div class="admin-stat-value" id="stat-total-users">—</div>
+        <div class="admin-stat-delta" id="stat-total-users-delta"></div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="admin-stat-label">Total chats</div>
+        <div class="admin-stat-value" id="stat-total-chats">—</div>
+        <div class="admin-stat-delta" id="stat-total-chats-delta"></div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="admin-stat-label">Est. cost this month</div>
+        <div class="admin-stat-value" id="stat-total-cost">—</div>
+        <div class="admin-stat-delta" id="stat-total-cost-delta"></div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="admin-stat-label">Avg. cost / user</div>
+        <div class="admin-stat-value" id="stat-avg-cost">—</div>
+        <div class="admin-stat-delta" id="stat-avg-cost-delta"></div>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-section-head">
+        <div>
+          <h2>Top users</h2>
+          <p>Ranked by number of chats this month</p>
+        </div>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="admin-top-users-table">
+          <thead>
+            <tr><th>#</th><th>User</th><th>Chats</th><th>Cost</th><th>Last active</th></tr>
+          </thead>
+          <tbody id="admin-top-users-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-section-head">
+        <div>
+          <h2>All accounts</h2>
+          <p id="admin-users-count-label">—</p>
+        </div>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="admin-users-table">
+          <thead>
+            <tr><th>User</th><th>Chats</th><th>Cost</th><th>Joined</th><th>Last active</th></tr>
+          </thead>
+          <tbody id="admin-users-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="chat-page">
+  <div id="chat-header">
+    <button id="back-btn" aria-label="Back to home" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+    <div id="bot-avatar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="8" width="16" height="12" rx="3"/>
+        <path d="M12 8V4"/><circle cx="12" cy="3" r="1"/>
+        <circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+        <circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+        <path d="M9 17.5c1 .8 5 .8 6 0"/>
+      </svg>
+    </div>
+    <div id="header-text">
+      <div class="title">Zaina Medical Assistant</div>
+      <div class="subtitle"><span id="status-dot"></span>Online now</div>
+    </div>
+    <button id="call-btn" aria-label="Start a voice call" type="button" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+    </button>
+    <button id="end-chat-btn" aria-label="End chat and email summary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="4" width="20" height="16" rx="2"/>
+        <path d="m2 7 10 6 10-6"/>
+      </svg>
+      <span class="label">End &amp; email summary</span>
+    </button>
+  </div>
+
+  <div id="chat-messages"></div>
+
+  <div id="chat-input-bar">
+    <div id="attachment-preview">
+      <div class="thumb" id="attachment-thumb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+      </div>
+      <div class="meta">
+        <div class="name" id="attachment-name">file.pdf</div>
+        <div class="hint" id="attachment-hint">Will be analyzed as a test report</div>
+      </div>
+      <button id="attachment-remove" aria-label="Remove attachment" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div id="chat-input-row">
+      <input type="file" id="file-input" accept="image/*,application/pdf" />
+      <button id="attach-btn" aria-label="Attach a test report" type="button" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+        </svg>
+      </button>
+      <textarea id="chat-input" rows="1" placeholder="Message the assistant, or attach a test report..." aria-label="Message" disabled></textarea>
+      <button id="chat-send" aria-label="Send message" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+        </svg>
+      </button>
+    </div>
+    <div id="input-hint">You can attach a lab result or test report (image or PDF) for the assistant to explain.</div>
+  </div>
+</div>
+
+<!-- Voice call overlay -->
+<div id="call-overlay">
+  <button id="call-back-btn" aria-label="End call and go home" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+  </button>
+  <div id="call-top">
+    <div id="call-name">Zaina Medical Assistant</div>
+    <div id="call-status">Calling…</div>
+    <div id="call-lang-toggle">
+      <button type="button" class="call-lang-btn active" id="call-lang-en" data-lang="en">English</button>
+      <button type="button" class="call-lang-btn" id="call-lang-ar" data-lang="ar">العربية</button>
+    </div>
+  </div>
+  <div id="call-avatar-ring">
+    <div id="call-avatar-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="8" width="16" height="12" rx="3"/>
+        <path d="M12 8V4"/><circle cx="12" cy="3" r="1"/>
+        <circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+        <circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+        <path d="M9 17.5c1 .8 5 .8 6 0"/>
+      </svg>
+    </div>
+  </div>
+  <div id="call-caption"></div>
+  <div id="call-bottom">
+    <div id="call-hint">Speak naturally after the beep-free listening indicator appears. Say "goodbye" or tap the red button to hang up.</div>
+    <button id="call-hangup-btn" aria-label="End call" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" transform="rotate(135 12 12)"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="auth-modal-overlay">
+  <div id="auth-modal">
+    <h2 id="auth-modal-title">Log in</h2>
+    <p id="auth-modal-subtext">Log in or create an account to start your session.</p>
+
+    <button type="button" id="auth-google-btn">
+      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.94v2.33A9 9 0 0 0 9 18z"/>
+        <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.94A9 9 0 0 0 0 9c0 1.45.35 2.83.94 4.03z"/>
+        <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .94 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58z"/>
+      </svg>
+      <span id="auth-google-btn-label">Continue with Google</span>
+    </button>
+
+    <div id="auth-divider"><span>or</span></div>
+
+    <form id="auth-form">
+      <input type="email" id="auth-email-input" placeholder="you@example.com" autocomplete="email" />
+      <input type="password" id="auth-password-input" placeholder="Password" autocomplete="current-password" />
+      <div id="auth-error"></div>
+      <div id="auth-info"></div>
+      <button type="submit" id="auth-submit-btn">Log in</button>
+    </form>
+
+    <div id="auth-switch-line">
+      <span id="auth-switch-text">Don't have an account?</span>
+      <button type="button" id="auth-switch-btn">Sign up</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  // ============================================================
+  // CONFIGURE THESE VALUES BEFORE USING
+  // ============================================================
+  // ---------- Supabase Auth ----------
+  const SUPABASE_URL = "https://vmarjdwlfdibrmgzeqac.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_VOanvOeVF-pOKv-0MT-HKg_lMZnG0PH";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const WEBHOOK_URL = "https://zainameh.app.n8n.cloud/webhook/chat";
+  const REQUEST_TIMEOUT_MS = 45000; // file analysis calls can take longer than plain chat
+  const WELCOME_MESSAGE = "What can I help you with? You can also attach a lab result or test report and I'll explain it for you.";
+  const END_COMMAND = "/end"; // the command the n8n workflow listens for to trigger the email summary branch
+  const DEFAULT_EMAIL = "zaina78.mehyar@gmail.com"; // fallback used if the user skips entering an email
+  const MAX_FILE_MB = 8; // reject attachments larger than this
+  const SPEECH_LANG_MAP = { en: "en-US", ar: "ar-SA" }; // recognition + fallback browser voice locale per language
+
+  // ---------- Admin area ----------
+  // Admin auth reuses Supabase Auth (sb.auth.signInWithPassword) — see the
+  // ADMIN AREA section below. Access is gated by a `role = 'admin'` column on
+  // the `profiles` table (RLS-protected), not by any secret in this file.
+  // The dashboard is read-only for now (no create/delete user) — that avoids
+  // needing an Edge Function + service_role key at all. Add one later if you
+  // want to manage accounts from this panel.
+  // ============================================================
+
+  const chatPage = document.getElementById("chat-page");
+  const messagesEl = document.getElementById("chat-messages");
+  const input = document.getElementById("chat-input");
+  const sendBtn = document.getElementById("chat-send");
+  const endBtn = document.getElementById("end-chat-btn");
+  const backBtn = document.getElementById("back-btn");
+
+  const attachBtn = document.getElementById("attach-btn");
+  const fileInput = document.getElementById("file-input");
+  const attachmentPreview = document.getElementById("attachment-preview");
+  const attachmentThumb = document.getElementById("attachment-thumb");
+  const attachmentName = document.getElementById("attachment-name");
+  const attachmentHint = document.getElementById("attachment-hint");
+  const attachmentRemove = document.getElementById("attachment-remove");
+
+  const callBtn = document.getElementById("call-btn");
+  const callOverlay = document.getElementById("call-overlay");
+  const callBackBtn = document.getElementById("call-back-btn");
+  const callStatus = document.getElementById("call-status");
+  const callCaption = document.getElementById("call-caption");
+  const callAvatarRing = document.getElementById("call-avatar-ring");
+  const callHangupBtn = document.getElementById("call-hangup-btn");
+  const callLangEnBtn = document.getElementById("call-lang-en");
+  const callLangArBtn = document.getElementById("call-lang-ar");
+  let callLanguage = "en"; // "en" or "ar" - which one the user picked to speak in
+
+  const botAvatarSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="8" width="16" height="12" rx="3"/>
+    <path d="M12 8V4"/><circle cx="12" cy="3" r="1"/>
+    <circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+    <circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+    <path d="M9 17.5c1 .8 5 .8 6 0"/>
+  </svg>`;
+
+  const fileIconSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>`;
+
+  // NOTE: session id and email are kept in memory only for this page load
+  // (no localStorage), so this works reliably everywhere it's embedded.
+  function makeSessionId() {
+    return (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2));
+  }
+  let sessionId = makeSessionId();
+  // Holds the exact text of the bot's most recent reply, sent back on the
+  // next request so n8n can reliably tell whether the user's new message is
+  // replying to a doctor-recommendation offer -- without depending on Mem0,
+  // which processes saves as an async background job and isn't guaranteed
+  // to be ready one message later.
+  let lastBotMessage = "";
+
+  // Stable per-account id (the logged-in Supabase auth user's id), used ONLY
+  // for Mem0's long-term memory bucket so returning users are recognized
+  // across reloads/days. Supabase's client persists the login in localStorage
+  // on its own, so this naturally survives a refresh as long as the person
+  // stays signed in -- unlike sessionId above, which intentionally resets
+  // every page load. Populated by refreshPersistentUserId() once we know
+  // who's signed in; falls back to sessionId if nobody is (shouldn't happen
+  // since login is required before chatting, but keeps things safe either way).
+  let persistentUserId = null;
+  async function refreshPersistentUserId() {
+    try {
+      const { data } = await sb.auth.getSession();
+      persistentUserId = (data.session && data.session.user && data.session.user.id) || null;
+    } catch (e) {
+      persistentUserId = null;
+    }
+  }
+  refreshPersistentUserId();
+  sb.auth.onAuthStateChange((_event, session) => {
+    persistentUserId = (session && session.user && session.user.id) || null;
+  });
+  let sending = false;
+  let chatEnded = false;
+  let chatStarted = false; // becomes true once the email step has been resolved for this session
+  let userEmail = "";
+  let pendingFile = null; // { name, mimeType, base64, isImage, dataUrl }
+
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  let pendingCallAfterEmail = false;
+
+  function startChat() {
+    chatStarted = true;
+    input.disabled = false;
+    sendBtn.disabled = false;
+    attachBtn.disabled = false;
+    callBtn.disabled = false;
+    addMessage(WELCOME_MESSAGE, "bot");
+    if (pendingCallAfterEmail) {
+      pendingCallAfterEmail = false;
+      startCall();
+    } else {
+      input.focus();
+    }
+  }
+
+  // ---------- Auth modal (Supabase: sign up / log in / Google) ----------
+  const authOverlay = document.getElementById("auth-modal-overlay");
+  const authTitle = document.getElementById("auth-modal-title");
+  const authSubtext = document.getElementById("auth-modal-subtext");
+  const authGoogleBtn = document.getElementById("auth-google-btn");
+  const authForm = document.getElementById("auth-form");
+  const authEmailInput = document.getElementById("auth-email-input");
+  const authPasswordInput = document.getElementById("auth-password-input");
+  const authError = document.getElementById("auth-error");
+  const authInfo = document.getElementById("auth-info");
+  const authSubmitBtn = document.getElementById("auth-submit-btn");
+  const authSwitchText = document.getElementById("auth-switch-text");
+  const authSwitchBtn = document.getElementById("auth-switch-btn");
+
+  let authMode = "login"; // "login" or "signup"
+  let pendingCallAfterAuth = false;
+  let authStandalone = false; // true when opened from the nav "Log in" button, not from entering the app
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    authError.textContent = "";
+    authInfo.textContent = "";
+    if (mode === "login") {
+      authTitle.textContent = "Log in";
+      authSubtext.textContent = "Log in to start your session.";
+      authSubmitBtn.textContent = "Log in";
+      authPasswordInput.autocomplete = "current-password";
+      authSwitchText.textContent = "Don't have an account?";
+      authSwitchBtn.textContent = "Sign up";
+    } else {
+      authTitle.textContent = "Sign up";
+      authSubtext.textContent = "Create an account to start your session.";
+      authSubmitBtn.textContent = "Sign up";
+      authPasswordInput.autocomplete = "new-password";
+      authSwitchText.textContent = "Already have an account?";
+      authSwitchBtn.textContent = "Log in";
+    }
+  }
+
+  function showAuthModal(thenStartCall, standalone) {
+    pendingCallAfterAuth = !!thenStartCall;
+    authStandalone = !!standalone;
+    setAuthMode("login");
+    authForm.reset();
+    authOverlay.classList.add("visible");
+    authEmailInput.focus();
+  }
+
+  function hideAuthModal() {
+    authOverlay.classList.remove("visible");
+  }
+
+  authSwitchBtn.addEventListener("click", () => {
+    setAuthMode(authMode === "login" ? "signup" : "login");
+  });
+
+  function finishAuth(session) {
+    userEmail = (session && session.user && session.user.email) || "";
+    hideAuthModal();
+    updateAuthStatusUI(session);
+    const wasStandalone = authStandalone;
+    authStandalone = false;
+    if (wasStandalone) return; // just logging in from the nav — stay on whatever page we're on
+    const wantsCall = pendingCallAfterAuth;
+    pendingCallAfterAuth = false;
+    if (!chatStarted) {
+      if (wantsCall) pendingCallAfterEmail = true;
+      startChat();
+    } else if (wantsCall && !callActive) {
+      startCall();
+    }
+  }
+
+  authForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = authEmailInput.value.trim();
+    const password = authPasswordInput.value;
+    authError.textContent = "";
+    authInfo.textContent = "";
+
+    if (!isValidEmail(email)) {
+      authError.textContent = "Enter a valid email address.";
+      return;
+    }
+    if (!password || password.length < 6) {
+      authError.textContent = "Password must be at least 6 characters.";
+      return;
+    }
+
+    authSubmitBtn.disabled = true;
+    authSubmitBtn.textContent = authMode === "login" ? "Logging in..." : "Signing up...";
+
+    try {
+      if (authMode === "login") {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        finishAuth(data.session);
+      } else {
+        const { data, error } = await sb.auth.signUp({ email, password });
+        if (error) throw error;
+        if (data.session) {
+          finishAuth(data.session);
+        } else {
+          // Email confirmation is required before a session is issued.
+          authInfo.textContent = "Check your email to confirm your account, then log in.";
+          setAuthMode("login");
+          authEmailInput.value = email;
+        }
+      }
+    } catch (err) {
+      authError.textContent = (err && err.message) || "Something went wrong. Please try again.";
+    } finally {
+      authSubmitBtn.disabled = false;
+      authSubmitBtn.textContent = authMode === "login" ? "Log in" : "Sign up";
+    }
+  });
+
+  authGoogleBtn.addEventListener("click", async () => {
+    authError.textContent = "";
+    authGoogleBtn.disabled = true;
+    // Remember intent across the OAuth redirect round-trip.
+    sessionStorage.setItem("zm_pending_call_after_auth", pendingCallAfterAuth ? "1" : "0");
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.href }
+    });
+    if (error) {
+      authError.textContent = error.message || "Google sign-in failed. Please try again.";
+      authGoogleBtn.disabled = false;
+    }
+    // On success the page redirects to Google, so nothing else runs here.
+  });
+
+  // On page load, pick up a session restored from Google's OAuth redirect
+  // (or an already-persisted session from a previous visit).
+  (async function checkExistingSession() {
+    const { data } = await sb.auth.getSession();
+    if (data.session && data.session.user) {
+      updateAuthStatusUI(data.session);
+      const restoredCall = sessionStorage.getItem("zm_pending_call_after_auth") === "1";
+      sessionStorage.removeItem("zm_pending_call_after_auth");
+      if (restoredCall) {
+        welcomeScreen.classList.add("hidden");
+        chatPage.classList.add("visible");
+        pendingCallAfterAuth = true;
+        finishAuth(data.session);
+      }
+      // Otherwise, leave the welcome screen showing — user hasn't clicked
+      // "Start chatting" / "Start the call" yet on this visit.
+    } else {
+      updateAuthStatusUI(null);
+    }
+  })();
+
+  // Keep the nav in sync with auth state changes fired anywhere (login,
+  // logout, token refresh, or the Google OAuth redirect resolving).
+  sb.auth.onAuthStateChange((_event, session) => {
+    updateAuthStatusUI(session);
+  });
+
+  // ---------- Message rendering ----------
+  function buildFileChip(name, isImage, dataUrl) {
+    const chip = document.createElement("div");
+    chip.className = "file-chip";
+    if (isImage && dataUrl) {
+      chip.innerHTML = `<img src="${dataUrl}" alt="" style="width:28px;height:28px;border-radius:6px;object-fit:cover;flex-shrink:0;" />`;
+    } else {
+      chip.innerHTML = fileIconSVG;
+    }
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "fname";
+    nameSpan.textContent = name;
+    chip.appendChild(nameSpan);
+    return chip;
+  }
+
+  function addMessage(text, role, fileInfo) {
+    const row = document.createElement("div");
+    row.className = "row " + role;
+
+    if (role === "bot" || role === "error") {
+      const avatar = document.createElement("div");
+      avatar.className = "avatar bot-avatar-sm";
+      avatar.innerHTML = botAvatarSVG;
+      row.appendChild(avatar);
+    }
+
+    const bubble = document.createElement("div");
+    bubble.className = "msg " + role;
+
+    if (fileInfo) {
+      bubble.appendChild(buildFileChip(fileInfo.name, fileInfo.isImage, fileInfo.dataUrl));
+    }
+    if (text) {
+      const textNode = document.createElement("div");
+      textNode.textContent = text;
+      bubble.appendChild(textNode);
+    }
+
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function addSystemNote(text) {
+    const row = document.createElement("div");
+    row.className = "row system";
+    const bubble = document.createElement("div");
+    bubble.className = "msg system";
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function showTyping() {
+    const row = document.createElement("div");
+    row.className = "typing-row";
+    row.id = "typing-indicator";
+    const avatar = document.createElement("div");
+    avatar.className = "avatar bot-avatar-sm";
+    avatar.innerHTML = botAvatarSVG;
+    const typing = document.createElement("div");
+    typing.className = "typing";
+    typing.innerHTML = "<span></span><span></span><span></span>";
+    row.appendChild(avatar);
+    row.appendChild(typing);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function hideTyping() {
+    const el = document.getElementById("typing-indicator");
+    if (el) el.remove();
+  }
+
+  // ---------- Textarea ----------
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 140) + "px";
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      trySend();
+    }
+  });
+  sendBtn.addEventListener("click", trySend);
+
+  // ---------- Attachment handling ----------
+  attachBtn.addEventListener("click", () => {
+    if (attachBtn.disabled) return;
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files && fileInput.files[0];
+    fileInput.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    const isImage = file.type.startsWith("image/");
+    const isPdf = file.type === "application/pdf";
+    if (!isImage && !isPdf) {
+      addMessage("Please attach an image (JPG/PNG) or a PDF of your test report.", "error");
+      return;
+    }
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      addMessage(`That file is too large. Please attach something under ${MAX_FILE_MB}MB.`, "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result; // e.g. data:application/pdf;base64,XXXX
+      const base64 = dataUrl.split(",")[1] || "";
+      pendingFile = {
+        name: file.name,
+        mimeType: file.type,
+        base64,
+        isImage,
+        dataUrl: isImage ? dataUrl : null
+      };
+      showAttachmentPreview();
+    };
+    reader.onerror = () => {
+      addMessage("Couldn't read that file. Please try again.", "error");
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function showAttachmentPreview() {
+    if (!pendingFile) {
+      attachmentPreview.classList.remove("visible");
+      return;
+    }
+    attachmentName.textContent = pendingFile.name;
+    attachmentHint.textContent = "Will be analyzed as a test report";
+    if (pendingFile.isImage && pendingFile.dataUrl) {
+      attachmentThumb.innerHTML = `<img src="${pendingFile.dataUrl}" alt="" />`;
+    } else {
+      attachmentThumb.innerHTML = fileIconSVG;
+    }
+    attachmentPreview.classList.add("visible");
+  }
+
+  attachmentRemove.addEventListener("click", () => {
+    pendingFile = null;
+    showAttachmentPreview();
+  });
+
+  // ---------- Voice call ----------
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let callActive = false;
+  let currentAudio = null;
+
+  function setCallStatus(text, listening) {
+    callStatus.textContent = text;
+    callCaption.textContent = "";
+    callAvatarRing.classList.toggle("pulse", !!listening);
+  }
+
+  function setCallLanguage(lang) {
+    if (lang !== "en" && lang !== "ar") return;
+    callLanguage = lang;
+    callLangEnBtn.classList.toggle("active", lang === "en");
+    callLangArBtn.classList.toggle("active", lang === "ar");
+
+    // If a call is already in progress, apply the new language immediately:
+    // restart recognition with the new locale and stop any in-progress speech
+    // so the fallback voice (if used next) also switches locale.
+    if (callActive && recognition) {
+      try { recognition.stop(); } catch (err) {}
+      recognition = initRecognition();
+      startListening();
+    }
+  }
+
+  callLangEnBtn.addEventListener("click", () => setCallLanguage("en"));
+  callLangArBtn.addEventListener("click", () => setCallLanguage("ar"));
+
+  function initRecognition() {
+    if (!SpeechRecognitionCtor) return null;
+    const r = new SpeechRecognitionCtor();
+    r.lang = SPEECH_LANG_MAP[callLanguage] || "en-US";
+    r.continuous = false;
+    r.interimResults = true;
+
+    r.onresult = (e) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += chunk;
+        else interimText += chunk;
+      }
+      callCaption.textContent = finalText || interimText;
+      if (finalText.trim()) {
+        r.finalTranscriptCaptured = finalText.trim();
+      }
+    };
+
+    r.onerror = (e) => {
+      if (!callActive) return;
+      if (e.error === "no-speech" || e.error === "aborted") {
+        // just try again quietly
+        return;
+      }
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        setCallStatus("Microphone access denied.");
+        endCall();
+        return;
+      }
+    };
+
+    r.onend = () => {
+      if (!callActive) return;
+      const transcript = r.finalTranscriptCaptured;
+      r.finalTranscriptCaptured = "";
+      if (transcript) {
+        setCallStatus("Thinking…", false);
+        sendMessage(transcript, { voice: true, isCall: true });
+      } else {
+        // no final transcript (silence/error) - keep listening
+        startListening();
+      }
+    };
+
+    return r;
+  }
+
+  function startListening() {
+    if (!callActive || !recognition) return;
+    setCallStatus("Listening…", true);
+    try {
+      recognition.start();
+    } catch (err) {
+      // recognition may already be running; ignore
+    }
+  }
+
+  function base64ToBlob(base64, mime) {
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mime });
+  }
+
+  function speakInCall(text, audioBase64, audioMimeType) {
+    setCallStatus("Speaking…", false);
+    callCaption.textContent = text || "";
+
+    const resumeAfterSpeaking = () => {
+      if (callActive) startListening();
+    };
+
+    if (audioBase64) {
+      try {
+        const blob = base64ToBlob(audioBase64, audioMimeType || "audio/wav");
+        const url = URL.createObjectURL(blob);
+        currentAudio = new Audio(url);
+        currentAudio.onended = () => { URL.revokeObjectURL(url); resumeAfterSpeaking(); };
+        currentAudio.onerror = () => { URL.revokeObjectURL(url); resumeAfterSpeaking(); };
+        currentAudio.play();
+        return;
+      } catch (err) {
+        // fall through to browser TTS
+      }
+    }
+
+    // Fallback: free built-in browser voice (used if Gemini TTS audio wasn't returned)
+    if (window.speechSynthesis && text) {
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = SPEECH_LANG_MAP[callLanguage] || "en-US";
+      utter.onend = resumeAfterSpeaking;
+      utter.onerror = resumeAfterSpeaking;
+      window.speechSynthesis.speak(utter);
+    } else {
+      resumeAfterSpeaking();
+    }
+  }
+
+  function startCall() {
+    if (!SpeechRecognitionCtor) {
+      addSystemNote("Voice calls need Chrome or Edge on this device — that browser doesn't support speech recognition.");
+      return;
+    }
+    if (chatEnded) return;
+    callActive = true;
+    recognition = initRecognition();
+    callOverlay.classList.add("visible");
+    addSystemNote("Call started");
+    setCallStatus("Listening…", true);
+    startListening();
+  }
+
+  function endCall() {
+    callActive = false;
+    if (recognition) {
+      try { recognition.stop(); } catch (err) {}
+    }
+    if (currentAudio) {
+      try { currentAudio.pause(); } catch (err) {}
+      currentAudio = null;
+    }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    callOverlay.classList.remove("visible");
+    addSystemNote("Call ended");
+  }
+
+  callBtn.addEventListener("click", startCall);
+  callHangupBtn.addEventListener("click", endCall);
+
+  // ---------- Welcome / landing screen ----------
+  const welcomeScreen = document.getElementById("welcome-screen");
+  const welcomeLangEnBtn = document.getElementById("welcome-lang-en");
+  const welcomeLangArBtn = document.getElementById("welcome-lang-ar");
+  const cardChatBtn = document.getElementById("card-chat");
+  const cardCallBtn = document.getElementById("card-call");
+  const scrollCue = document.getElementById("scroll-cue");
+
+  // ---------- Auth status (nav login button / logged-in user chip) ----------
+  const welcomeLoginBtn = document.getElementById("welcome-login-btn");
+  const welcomeUserChip = document.getElementById("welcome-user-chip");
+  const welcomeUserAvatar = document.getElementById("welcome-user-avatar");
+  const welcomeUserEmail = document.getElementById("welcome-user-email");
+
+  function updateAuthStatusUI(session) {
+    const email = (session && session.user && session.user.email) || "";
+    if (email) {
+      welcomeLoginBtn.style.display = "none";
+      welcomeUserChip.classList.add("visible");
+      welcomeUserAvatar.textContent = email.charAt(0);
+      welcomeUserEmail.textContent = email;
+    } else {
+      welcomeLoginBtn.style.display = "";
+      welcomeUserChip.classList.remove("visible");
+      welcomeUserAvatar.textContent = "";
+      welcomeUserEmail.textContent = "";
+    }
+  }
+
+  welcomeLoginBtn.addEventListener("click", () => {
+    showAuthModal(false, true);
+  });
+
+  welcomeUserChip.addEventListener("click", () => {
+    openProfilePage();
+  });
+
+  // ---------- Profile page (view account, log out, switch account) ----------
+  const profilePage = document.getElementById("profile-page");
+  const profileBackBtn = document.getElementById("profile-back-btn");
+  const profileAvatarLarge = document.getElementById("profile-avatar-large");
+  const profileEmailDisplay = document.getElementById("profile-email-display");
+  const profileSwitchBtn = document.getElementById("profile-switch-btn");
+  const profileLogoutBtn = document.getElementById("profile-logout-btn");
+
+  async function openProfilePage() {
+    const { data } = await sb.auth.getSession();
+    const email = (data.session && data.session.user && data.session.user.email) || "";
+    profileAvatarLarge.textContent = email.charAt(0);
+    profileEmailDisplay.textContent = email;
+    if (callActive) endCall();
+    chatPage.classList.remove("visible");
+    infoPage.classList.remove("visible");
+    welcomeScreen.classList.add("hidden");
+    profilePage.classList.add("visible");
+    window.scrollTo(0, 0);
+  }
+
+  function closeProfilePage() {
+    profilePage.classList.remove("visible");
+    welcomeScreen.classList.remove("hidden");
+  }
+
+  // Fully resets the in-page chat session so the next signed-in user
+  // never sees a previous person's conversation.
+  function resetChatSession() {
+    messagesEl.innerHTML = "";
+    chatStarted = false;
+    chatEnded = false;
+    userEmail = "";
+    pendingFile = null;
+    lastBotMessage = "";
+    sessionId = makeSessionId();
+    input.disabled = true;
+    sendBtn.disabled = true;
+    attachBtn.disabled = true;
+    callBtn.disabled = true;
+  }
+
+  async function logOut() {
+    await sb.auth.signOut();
+    updateAuthStatusUI(null);
+    resetChatSession();
+    closeProfilePage();
+  }
+
+  profileLogoutBtn.addEventListener("click", logOut);
+
+  profileSwitchBtn.addEventListener("click", async () => {
+    await sb.auth.signOut();
+    updateAuthStatusUI(null);
+    resetChatSession();
+    closeProfilePage();
+    showAuthModal(false, true);
+  });
+
+  profileBackBtn.addEventListener("click", closeProfilePage);
+
+  // ================================================================
+  // ADMIN AREA (login + dashboard)
+  // ================================================================
+  const footerAdminLink = document.getElementById("footer-admin-link");
+  const adminLoginPage = document.getElementById("admin-login-page");
+  const adminLoginBack = document.getElementById("admin-login-back");
+  const adminLoginForm = document.getElementById("admin-login-form");
+  const adminUsernameInput = document.getElementById("admin-username-input");
+  const adminPasswordInput = document.getElementById("admin-password-input");
+  const adminLoginError = document.getElementById("admin-login-error");
+
+  const adminDashboardPage = document.getElementById("admin-dashboard-page");
+  const adminLogoutBtn = document.getElementById("admin-logout-btn");
+
+  function hideAllTopLevelPages() {
+    if (callActive) endCall();
+    welcomeScreen.classList.add("hidden");
+    chatPage.classList.remove("visible");
+    infoPage.classList.remove("visible");
+    profilePage.classList.remove("visible");
+    adminLoginPage.classList.remove("visible");
+    adminDashboardPage.classList.remove("visible");
+  }
+
+  function openAdminLogin() {
+    hideAllTopLevelPages();
+    adminLoginError.textContent = "";
+    adminLoginForm.reset();
+    adminLoginPage.classList.add("visible");
+    window.scrollTo(0, 0);
+    adminUsernameInput.focus();
+  }
+
+  function closeAdminArea() {
+    adminLoginPage.classList.remove("visible");
+    adminDashboardPage.classList.remove("visible");
+    welcomeScreen.classList.remove("hidden");
+    window.scrollTo(0, 0);
+  }
+
+  footerAdminLink.addEventListener("click", openAdminLogin);
+  adminLoginBack.addEventListener("click", closeAdminArea);
+  adminLogoutBtn.addEventListener("click", async () => {
+    await sb.auth.signOut();
+    adminSession = null;
+    closeAdminArea();
+  });
+
+  // adminSession holds { access_token, user } for the logged-in admin, kept
+  // separately from the regular chat-user session (finishAuth/userEmail above).
+  let adminSession = null;
+
+  adminLoginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = adminUsernameInput.value.trim();
+    const password = adminPasswordInput.value;
+    adminLoginError.textContent = "";
+    const submitBtn = document.getElementById("admin-login-submit");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Logging in...";
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      // Check the role flag on the profiles table (RLS lets a user read their
+      // own row, so this works with the anon key).
+      const { data: profile, error: profileErr } = await sb
+        .from("profiles")
+        .select("role")
+        .eq("id", data.session.user.id)
+        .single();
+
+      if (profileErr || !profile || profile.role !== "admin") {
+        await sb.auth.signOut();
+        adminLoginError.textContent = "This account doesn't have admin access.";
+        return;
+      }
+
+      adminSession = { access_token: data.session.access_token, user: data.session.user };
+      adminLoginPage.classList.remove("visible");
+      adminDashboardPage.classList.add("visible");
+      window.scrollTo(0, 0);
+      renderAdminDashboard();
+    } catch (err) {
+      adminLoginError.textContent = (err && err.message) || "Incorrect email or password.";
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Log in";
+    }
+  });
+
+  // ---------- Real usage data, pulled from Supabase ----------
+  // `chat_logs` is written by the n8n workflow (one row per finished chat
+  // session) — see supabase_schema.sql for the table + RLS policies.
+  let adminUsers = [];
+
+  async function fetchAdminData() {
+    const { data: profiles, error: pErr } = await sb
+      .from("profiles")
+      .select("id, email, full_name, created_at")
+      .neq("role", "admin")
+      .order("created_at", { ascending: false });
+    if (pErr) throw pErr;
+
+    const { data: logs, error: lErr } = await sb
+      .from("chat_logs")
+      .select("user_id, message_count, est_cost, created_at");
+    if (lErr) throw lErr;
+
+    const byUser = new Map();
+    (logs || []).forEach((row) => {
+      if (!row.user_id) return;
+      const agg = byUser.get(row.user_id) || { chats: 0, cost: 0, lastActive: null };
+      agg.chats += 1;
+      agg.cost += Number(row.est_cost || 0);
+      const t = new Date(row.created_at);
+      if (!agg.lastActive || t > agg.lastActive) agg.lastActive = t;
+      byUser.set(row.user_id, agg);
+    });
+
+    adminUsers = (profiles || []).map((p) => {
+      const agg = byUser.get(p.id) || { chats: 0, cost: 0, lastActive: null };
+      return {
+        id: p.id,
+        name: p.full_name || (p.email || "").split("@")[0],
+        email: p.email || "",
+        chats: agg.chats,
+        cost: agg.cost,
+        joined: new Date(p.created_at),
+        lastActive: agg.lastActive || new Date(p.created_at)
+      };
+    });
+  }
+
+  function fmtMoney(n) { return "$" + n.toFixed(2); }
+  function fmtDate(d) { return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); }
+  function fmtRelative(d) {
+    const days = Math.round((Date.now() - d.getTime()) / 86400000);
+    if (days <= 0) return "Today";
+    if (days === 1) return "Yesterday";
+    return days + "d ago";
+  }
+  function initialsOf(name) {
+    return name.split(/\s+/).map((p) => p.charAt(0)).slice(0, 2).join("").toUpperCase();
+  }
+
+  async function renderAdminDashboard() {
+    const bannerEl = document.getElementById("admin-mock-banner");
+    const bannerText = document.getElementById("admin-banner-text");
+    bannerEl.style.display = "none";
+
+    try {
+      await fetchAdminData();
+    } catch (err) {
+      console.error("Failed to load admin data:", err);
+      bannerText.textContent = "Couldn't load live data from Supabase (" + ((err && err.message) || "unknown error") + ").";
+      bannerEl.style.display = "flex";
+    }
+
+    const now = Date.now();
+    const weekAgo = now - 7 * 86400000;
+    const totalUsers = adminUsers.length;
+    const totalChats = adminUsers.reduce((sum, u) => sum + u.chats, 0);
+    const totalCost = adminUsers.reduce((sum, u) => sum + u.cost, 0);
+    const avgCost = totalUsers ? totalCost / totalUsers : 0;
+    const newUsersThisWeek = adminUsers.filter((u) => u.joined.getTime() >= weekAgo).length;
+
+    document.getElementById("stat-total-users").textContent = totalUsers;
+    document.getElementById("stat-total-users-delta").textContent = "+" + newUsersThisWeek + " this week";
+    document.getElementById("stat-total-chats").textContent = totalChats;
+    document.getElementById("stat-total-chats-delta").textContent = totalChats + " logged total";
+    document.getElementById("stat-total-cost").textContent = fmtMoney(totalCost);
+    document.getElementById("stat-total-cost-delta").textContent = "based on logged chats";
+    document.getElementById("stat-avg-cost").textContent = fmtMoney(avgCost);
+    document.getElementById("stat-avg-cost-delta").textContent = "per user";
+
+    // Top users (by chats)
+    const top = [...adminUsers].sort((a, b) => b.chats - a.chats).slice(0, 5);
+    const topBody = document.getElementById("admin-top-users-body");
+    topBody.innerHTML = top.map((u, i) => `
+      <tr>
+        <td><span class="admin-rank">${i + 1}</span></td>
+        <td>
+          <div class="admin-user-cell">
+            <div class="admin-user-avatar">${initialsOf(u.name)}</div>
+            <div>${u.name}<br><span style="color:rgba(210,222,250,0.5); font-size:11.5px;">${u.email}</span></div>
+          </div>
+        </td>
+        <td>${u.chats}</td>
+        <td>${fmtMoney(u.cost)}</td>
+        <td>${fmtRelative(u.lastActive)}</td>
+      </tr>
+    `).join("");
+
+    // All accounts
+    document.getElementById("admin-users-count-label").textContent = totalUsers + " account" + (totalUsers === 1 ? "" : "s");
+    const usersBody = document.getElementById("admin-users-body");
+    const sorted = [...adminUsers].sort((a, b) => b.joined - a.joined);
+    usersBody.innerHTML = sorted.map((u) => `
+      <tr>
+        <td>
+          <div class="admin-user-cell">
+            <div class="admin-user-avatar">${initialsOf(u.name)}</div>
+            <div>${u.name}<br><span style="color:rgba(210,222,250,0.5); font-size:11.5px;">${u.email}</span></div>
+          </div>
+        </td>
+        <td>${u.chats}</td>
+        <td>${fmtMoney(u.cost)}</td>
+        <td>${fmtDate(u.joined)}</td>
+        <td>${fmtRelative(u.lastActive)}</td>
+      </tr>
+    `).join("");
+  }
+
+  const WELCOME_COPY = {
+    en: {
+      eyebrow: "MEDICAL AI, GROUNDED IN EVIDENCE",
+      headline: "Understand your health,<br>one question at a time.",
+      subhead: "Ask about symptoms, upload a lab report, or talk it through out loud — answered from trusted Altibbi medical articles, in English or Arabic.",
+      chatTitle: "Chat with the assistant",
+      chatDesc: "Type your questions or attach a lab result — get clear, sourced answers back in writing.",
+      chatCta: "Start chatting →",
+      callTitle: "Talk to a Dr. Assistant",
+      callDesc: "Have a real-time voice conversation — speak naturally and hear the answer spoken back.",
+      callCta: "Start the call →",
+      disclaimer: "Not a diagnosis. Always confirm with a licensed doctor.",
+      scrollCue: "See what we can help with",
+      navAbout: "About us",
+      navFaq: "FAQ",
+      footerTagline: "Grounded medical answers, in the language you're comfortable in.",
+      footerDisclaimer: "Not a diagnosis. Always confirm with a licensed doctor.",
+      servicesEyebrow: "WHAT THIS ASSISTANT CAN DO",
+      servicesTitle: "Know before you ask",
+      canTitle: "You can ask about",
+      canItem1: "General symptoms and possible causes",
+      canItem2: "Understanding lab results and test reports",
+      canItem3: "General medication information",
+      canItem4: "Preventive health and lifestyle guidance",
+      canItem5: "Explaining medical terms in plain language",
+      cantTitle: "It can't help with",
+      cantItem1: "Diagnosing a condition",
+      cantItem2: "Prescribing or adjusting medication doses",
+      cantItem3: "Medical emergencies — call your local emergency number",
+      cantItem4: "Replacing an in-person exam by a licensed doctor",
+      cantItem5: "Accessing your personal medical records",
+      aboutP1: "Zaina Medical is an assistant that helps people understand what's happening with their health before they see a doctor, in the language they're most comfortable in.",
+      aboutP2: "Every answer is grounded in real medical content, not invented. Questions are matched against a library of medical articles from Altibbi, one of the largest Arabic health platforms, using semantic search so responses stay close to trustworthy source material.",
+      aboutP3: "It's built to inform, not replace medical care. Think of it as a starting point for understanding symptoms, lab results, and general health questions — always confirm anything important with a licensed doctor.",
+      faqQ1: "What can I ask the assistant?",
+      faqA1: "Ask about symptoms, general health topics, medication information, or attach a lab result and get help understanding it in plain language.",
+      faqQ2: "What can't it do?",
+      faqA2: "It can't diagnose conditions, prescribe medication, or handle emergencies. For urgent symptoms, contact your local emergency number immediately.",
+      faqQ3: "Where do the answers come from?",
+      faqA3: "Responses are grounded in Altibbi's medical articles, retrieved for each question using semantic search, so answers stay close to real, reviewed medical content.",
+      faqQ4: "Is my conversation private?",
+      faqA4: "Each chat is tied to a temporary session, not a permanent account. If you request a summary, it's emailed to your sign-in address.",
+      faqQ5: "Which languages are supported?",
+      faqA5: "You can chat or talk in English or Arabic — switch anytime from the call screen or the language toggle.",
+      faqQ6: "Can I upload a lab result?",
+      faqA6: "Yes — attach an image or PDF up to 8MB and the assistant will walk you through it."
+    },
+    ar: {
+      eyebrow: "ذكاء طبي مبني على مصادر موثوقة",
+      headline: "افهم صحتك،<br>سؤالاً بعد سؤال.",
+      subhead: "اسأل عن الأعراض، ارفع نتيجة فحص مخبري، أو تحدّث بصوتك — إجابات مبنية على مقالات الطبي الموثوقة، بالعربية أو الإنجليزية.",
+      chatTitle: "تحدث مع المساعد كتابةً",
+      chatDesc: "اكتب سؤالك أو أرفق نتيجة فحص — واحصل على إجابة واضحة وموثقة.",
+      chatCta: "ابدأ المحادثة ←",
+      callTitle: "تحدث مع مساعد طبي صوتيًا",
+      callDesc: "أجرِ مكالمة صوتية مباشرة — تحدث بشكل طبيعي واسمع الإجابة منطوقة.",
+      callCta: "ابدأ المكالمة ←",
+      disclaimer: "هذه ليست تشخيصًا طبيًا. راجع دائمًا طبيبًا مرخصًا.",
+      scrollCue: "تعرّف على ما يمكننا المساعدة به",
+      navAbout: "من نحن",
+      navFaq: "الأسئلة الشائعة",
+      footerTagline: "إجابات طبية موثوقة، باللغة التي تشعر بالراحة فيها.",
+      footerDisclaimer: "هذه ليست تشخيصًا طبيًا. راجع دائمًا طبيبًا مرخصًا.",
+      servicesEyebrow: "ما الذي يمكن لهذا المساعد فعله",
+      servicesTitle: "تعرّف قبل أن تسأل",
+      canTitle: "يمكنك السؤال عن",
+      canItem1: "الأعراض العامة وأسبابها المحتملة",
+      canItem2: "فهم نتائج الفحوصات المخبرية والتقارير",
+      canItem3: "معلومات عامة عن الأدوية",
+      canItem4: "إرشادات الوقاية الصحية ونمط الحياة",
+      canItem5: "شرح المصطلحات الطبية بلغة مبسطة",
+      cantTitle: "لا يستطيع المساعدة في",
+      cantItem1: "تشخيص حالة مرضية",
+      cantItem2: "وصف أو تعديل جرعات الأدوية",
+      cantItem3: "الحالات الطارئة — اتصل برقم الطوارئ المحلي",
+      cantItem4: "استبدال الفحص الحضوري لدى طبيب مرخّص",
+      cantItem5: "الوصول إلى سجلاتك الطبية الشخصية",
+      aboutP1: "Zaina Medical هو مساعد يساعد الناس على فهم ما يحدث لصحتهم قبل زيارة الطبيب، باللغة التي يشعرون بالراحة فيها.",
+      aboutP2: "كل إجابة مبنية على محتوى طبي حقيقي، وليست مُختلقة. تُطابق الأسئلة مع مكتبة مقالات طبية من موقع الطبي، أحد أكبر المنصات الصحية باللغة العربية، باستخدام البحث الدلالي لتبقى الإجابات قريبة من مصادر موثوقة.",
+      aboutP3: "صُمم المساعد ليُعلمك لا ليحل محل الرعاية الطبية. اعتبره نقطة انطلاق لفهم الأعراض ونتائج الفحوصات والأسئلة الصحية العامة — وراجع دائمًا طبيبًا مرخصًا لأي أمر مهم.",
+      faqQ1: "بماذا يمكنني سؤال المساعد؟",
+      faqA1: "اسأل عن الأعراض، مواضيع صحية عامة، معلومات عن الأدوية، أو أرفق نتيجة فحص مخبري وستحصل على شرح مبسّط لها.",
+      faqQ2: "ما الذي لا يستطيع فعله؟",
+      faqA2: "لا يستطيع تشخيص الحالات أو وصف الأدوية أو التعامل مع الطوارئ. في حال الأعراض الطارئة، تواصل فورًا مع رقم الطوارئ المحلي.",
+      faqQ3: "من أين تأتي الإجابات؟",
+      faqA3: "الإجابات مبنية على مقالات طبية من موقع الطبي، يتم استرجاعها لكل سؤال عبر البحث الدلالي، لتبقى قريبة من محتوى طبي حقيقي وموثوق.",
+      faqQ4: "هل محادثتي خاصة؟",
+      faqA4: "كل محادثة مرتبطة بجلسة مؤقتة وليست بحساب دائم. إذا طلبت ملخصًا، يُرسل إلى بريد تسجيل الدخول الخاص بك.",
+      faqQ5: "ما اللغات المدعومة؟",
+      faqA5: "يمكنك الدردشة أو التحدث بالعربية أو الإنجليزية — بدّل في أي وقت من شاشة المكالمة أو مبدّل اللغة.",
+      faqQ6: "هل يمكنني رفع نتيجة فحص؟",
+      faqA6: "نعم، أرفق صورة أو ملف PDF بحجم أقصى 8 ميغابايت وسيشرحه لك المساعد."
+    }
+  };
+
+  function applyWelcomeLanguage(lang) {
+    const copy = WELCOME_COPY[lang] || WELCOME_COPY.en;
+    document.querySelectorAll("#welcome-screen [data-i18n], #info-page [data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      if (copy[key]) el.innerHTML = copy[key];
+    });
+    welcomeLangEnBtn.classList.toggle("active", lang === "en");
+    welcomeLangArBtn.classList.toggle("active", lang === "ar");
+    const activeTabBtn = document.querySelector(".info-tab-btn.active");
+    const infoPageTitleEl = document.getElementById("info-page-title");
+    if (activeTabBtn && infoPageTitleEl) infoPageTitleEl.textContent = activeTabBtn.textContent;
+    // Carry the choice into the call screen's own language toggle too.
+    setCallLanguage(lang);
+  }
+
+  welcomeLangEnBtn.addEventListener("click", () => applyWelcomeLanguage("en"));
+  welcomeLangArBtn.addEventListener("click", () => applyWelcomeLanguage("ar"));
+
+  async function enterApp(thenStartCall) {
+    welcomeScreen.classList.add("hidden");
+    chatPage.classList.add("visible");
+    if (!chatStarted) {
+      const { data } = await sb.auth.getSession();
+      if (data.session && data.session.user) {
+        userEmail = data.session.user.email || "";
+        if (thenStartCall && !callActive) pendingCallAfterEmail = true;
+        startChat();
+      } else {
+        showAuthModal(thenStartCall);
+      }
+    } else if (thenStartCall && !callActive) {
+      startCall();
+    } else {
+      input.focus();
+    }
+  }
+
+  function goHome() {
+    if (callActive) endCall();
+    chatPage.classList.remove("visible");
+    welcomeScreen.classList.remove("hidden");
+  }
+
+  backBtn.addEventListener("click", goHome);
+  callBackBtn.addEventListener("click", goHome);
+
+  cardChatBtn.addEventListener("click", () => {
+    enterApp(false);
+  });
+
+  cardCallBtn.addEventListener("click", () => {
+    enterApp(true);
+  });
+
+  scrollCue.addEventListener("click", () => {
+    document.getElementById("services-section").scrollIntoView({ behavior: "smooth" });
+  });
+
+  // ---------- Info page (About us / FAQ) — separate page, back button returns home ----------
+  const infoPage = document.getElementById("info-page");
+  const infoBackBtn = document.getElementById("info-back-btn");
+  const infoPageTitle = document.getElementById("info-page-title");
+  const infoTabButtons = document.querySelectorAll(".info-tab-btn");
+  const infoPanels = document.querySelectorAll(".info-panel");
+  const linkAbout = document.getElementById("link-about");
+  const linkFaq = document.getElementById("link-faq");
+  const footerLinkAbout = document.getElementById("footer-link-about");
+  const footerLinkFaq = document.getElementById("footer-link-faq");
+  const footerYear = document.getElementById("footer-year");
+  if (footerYear) footerYear.textContent = new Date().getFullYear();
+
+  function showInfoTab(tab) {
+    infoTabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tab));
+    infoPanels.forEach((panel) => panel.classList.toggle("active", panel.id === "info-panel-" + tab));
+    const activeBtn = document.querySelector('.info-tab-btn[data-tab="' + tab + '"]');
+    if (activeBtn && infoPageTitle) infoPageTitle.textContent = activeBtn.textContent;
+  }
+  function openInfoPage(tab) {
+    showInfoTab(tab);
+    welcomeScreen.classList.add("hidden");
+    infoPage.classList.add("visible");
+    window.scrollTo(0, 0);
+  }
+  function closeInfoPage() {
+    infoPage.classList.remove("visible");
+    welcomeScreen.classList.remove("hidden");
+  }
+
+  linkAbout.addEventListener("click", () => openInfoPage("about"));
+  linkFaq.addEventListener("click", () => openInfoPage("faq"));
+  if (footerLinkAbout) footerLinkAbout.addEventListener("click", () => openInfoPage("about"));
+  if (footerLinkFaq) footerLinkFaq.addEventListener("click", () => openInfoPage("faq"));
+  infoTabButtons.forEach((btn) => btn.addEventListener("click", () => showInfoTab(btn.dataset.tab)));
+  infoBackBtn.addEventListener("click", closeInfoPage);
+
+  // ---------- Node-network background (welcome screen signature visual) ----------
+  (function initNodeCanvas() {
+    const canvas = document.getElementById("node-canvas");
+    if (!canvas || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const ctx = canvas.getContext("2d");
+    let width, height, particles;
+    const PARTICLE_COUNT = 46;
+    const LINK_DIST = 130;
+
+    function resize() {
+      width = canvas.width = canvas.offsetWidth * devicePixelRatio;
+      height = canvas.height = canvas.offsetHeight * devicePixelRatio;
+    }
+
+    function makeParticles() {
+      particles = Array.from({ length: PARTICLE_COUNT }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.18 * devicePixelRatio,
+        vy: (Math.random() - 0.5) * 0.18 * devicePixelRatio
+      }));
+    }
+
+    function step() {
+      ctx.clearRect(0, 0, width, height);
+      for (const p of particles) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+      }
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const a = particles[i], b = particles[j];
+          const dist = Math.hypot(a.x - b.x, a.y - b.y);
+          if (dist < LINK_DIST * devicePixelRatio) {
+            ctx.strokeStyle = `rgba(11, 17, 48, ${0.14 * (1 - dist / (LINK_DIST * devicePixelRatio))})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+      for (const p of particles) {
+        ctx.fillStyle = "rgba(11, 17, 48, 0.5)";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.6 * devicePixelRatio, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      requestAnimationFrame(step);
+    }
+
+    resize();
+    makeParticles();
+    step();
+    window.addEventListener("resize", () => { resize(); makeParticles(); });
+  })();
+
+  // ---------- Sending ----------
+  function trySend() {
+    const text = input.value.trim();
+    if (!text && !pendingFile) return;
+    sendMessage(text, {});
+  }
+
+  endBtn.addEventListener("click", () => {
+    if (chatEnded || sending) return;
+    const confirmed = window.confirm("End this chat and email yourself a summary?");
+    if (!confirmed) return;
+    addSystemNote("Ending chat & sending summary...");
+    sendMessage(END_COMMAND, { hideUserBubble: true });
+  });
+
+  async function sendMessage(text, opts) {
+    opts = opts || {};
+    if ((!text && !pendingFile) || sending || chatEnded) return;
+
+    if (WEBHOOK_URL.startsWith("REPLACE_WITH")) {
+      addMessage("This bot isn't configured yet — set WEBHOOK_URL at the top of the script.", "error");
+      return;
+    }
+
+    const fileForThisMessage = opts.hideUserBubble ? null : pendingFile;
+
+    if (!opts.hideUserBubble) {
+      addMessage(text, "user", fileForThisMessage ? {
+        name: fileForThisMessage.name,
+        isImage: fileForThisMessage.isImage,
+        dataUrl: fileForThisMessage.dataUrl
+      } : null);
+    }
+
+    input.value = "";
+    input.style.height = "auto";
+    pendingFile = null;
+    showAttachmentPreview();
+
+    sending = true;
+    sendBtn.disabled = true;
+    endBtn.disabled = true;
+    attachBtn.disabled = true;
+    showTyping();
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    const payload = {
+      message: text || (fileForThisMessage ? "Please analyze this test report." : ""),
+      session_id: sessionId,
+      user_id: persistentUserId || sessionId,
+      last_bot_message: lastBotMessage,
+      email: userEmail || DEFAULT_EMAIL,
+      language: callLanguage
+    };
+    if (fileForThisMessage) {
+      payload.file = fileForThisMessage.base64;
+      payload.fileMimeType = fileForThisMessage.mimeType;
+    }
+    if (opts.voice) {
+      payload.voice = true;
+    }
+
+    try {
+      const res = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+      hideTyping();
+
+      if (!res.ok) {
+        addMessage("Something went wrong (status " + res.status + "). Please try again.", "error");
+        return;
+      }
+
+      const data = await res.json();
+      const reply = data.reply || data.text || data.output || data.message || JSON.stringify(data);
+      addMessage(reply, "bot");
+      lastBotMessage = reply;
+
+      if (opts.isCall) {
+        speakInCall(reply, data.audio_base64 || null, data.mime_type || null);
+      }
+
+      if (opts.hideUserBubble) {
+        // this was the end/summary command — lock the chat afterward
+        chatEnded = true;
+        input.disabled = true;
+        input.placeholder = "Chat ended — refresh to start a new one";
+        endBtn.style.display = "none";
+        attachBtn.disabled = true;
+        addSystemNote("Chat ended. Check your email for the summary.");
+      }
+
+    } catch (err) {
+      clearTimeout(timeoutId);
+      hideTyping();
+      if (err.name === "AbortError") {
+        addMessage("This is taking longer than expected. Please try again.", "error");
+        if (opts.isCall) speakInCall("Sorry, that took too long. Please try again.", null);
+      } else {
+        addMessage("Couldn't reach the assistant. Check your connection and try again.", "error");
+        if (opts.isCall) speakInCall("Sorry, I couldn't reach the server. Please try again.", null);
+      }
+    } finally {
+      sending = false;
+      sendBtn.disabled = false;
+      endBtn.disabled = chatEnded;
+      attachBtn.disabled = chatEnded;
+      callBtn.disabled = chatEnded;
+      if (chatEnded && callActive) endCall();
+    }
+  }
+})();
+</script>
+
+</body>
+</html>

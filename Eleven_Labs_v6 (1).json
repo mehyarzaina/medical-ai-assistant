@@ -1,0 +1,1212 @@
+{
+  "name": "Eleven Labs v6",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e336f887-6c6e-4409-914a-e7916bfd872c",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        384
+      ],
+      "webhookId": "0a444d3a-bd7a-47c4-a37e-2799972846eb"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-file-present",
+              "leftValue": "={{ $json.body.file }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "89fb405d-43b5-40ee-93c1-e4e321417031",
+      "name": "Has File?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1344,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "YOUR_GEMINI_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: \"Analyze this medical test report or lab result. Explain the results in plain, reassuring language, flag anything outside normal ranges, and clearly recommend seeing a doctor for interpretation and next steps. Do not provide a diagnosis. If the user included an accompanying message, respond in that message\\u2019s language (Arabic or English); otherwise match the language used in the document itself.\" }, { inline_data: { mime_type: $json.body.fileMimeType, data: $json.body.file } } ] } ] }) }}",
+        "options": {}
+      },
+      "id": "d9352d3a-ab22-45bf-828e-f8634e9259eb",
+      "name": "Analyze Test Report (Gemini Vision)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2016,
+        48
+      ],
+      "notes": "Replace YOUR_GEMINI_API_KEY. Expects body.file = base64 data, body.fileMimeType = e.g. application/pdf or image/jpeg, sent from the frontend upload."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { reply: $json.candidates[0].content.parts[0].text } }}",
+        "options": {}
+      },
+      "id": "aceb36d7-920d-43be-99e9-a90484320ce3",
+      "name": "Respond - File Analysis",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2464,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "EMBEDDING_LINK",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "YOUR_EMBEDDING_SERVICE_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  docs: [ $json.body.message ],\n  dense_weight: 1.0,\n  sparse_weight: 0.0,\n  convert_to_float32: true,\n  normalize_vectors: false,\n  batch_size: 16\n}) }}",
+        "options": {}
+      },
+      "id": "062b3a58-d518-4c0e-b73d-57ccceb5cea3",
+      "name": "Embed Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1120,
+        576
+      ],
+      "notes": "Body reads from body.message. Confirm this matches whatever field your frontend actually sends."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://in03-14c7c22502a4284.serverless.aws-eu-central-1.cloud.zilliz.com/v2/vectordb/entities/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_ZILLIZ_API_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  collectionName: \"altibbi_articles\",\n  data: [ $json.embeddings[0] ],\n  limit: 5,\n  outputFields: [\"text\",\"title\",\"url\",\"category\",\"author\"]\n}) }}",
+        "options": {}
+      },
+      "id": "bf5018f4-637a-4d6d-8575-fc1214f4a8bb",
+      "name": "Search Zilliz",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -896,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Search Zilliz').first().json;\nconst hits = body.data || [];\n\nconst context = hits.map((h, i) => {\n  const text = h.text ?? h.entity?.text ?? '';\n  const title = h.title ?? h.entity?.title ?? '';\n  const category = h.category ?? h.entity?.category ?? '';\n  const url = h.url ?? h.entity?.url ?? '';\n  return `[${i + 1}] ${title} (${category})\\n${text}\\nSource: ${url}`;\n}).join('\\n\\n');\n\nconst question = $('Webhook').first().json.body.message;\n\n// The exact text of the bot's immediately preceding reply, sent by the\n// frontend itself (not fetched from Mem0). This is the reliable signal for\n// \"did I just offer a doctor\" -- it's synchronous and always current, unlike\n// Mem0 history below, which processes saves as an async background job and\n// isn't guaranteed to be ready by the very next message.\nconst lastBotMessage = $('Webhook').first().json.body.last_bot_message || '';\n\n// Older Mem0 history - best-effort supplementary context only. May lag or be\n// empty due to Mem0's async processing; do not rely on it for the immediate\n// \"was there just an offer\" check, that's what lastBotMessage above is for.\nlet historyItems = [];\ntry {\n  const histJson = $('Get Recent History (Mem0)').first().json;\n  historyItems = histJson.results || histJson.memories || histJson.data || [];\n} catch (e) {\n  historyItems = [];\n}\nconst olderHistory = historyItems.slice(-6).map((m) => {\n  const role = m.role || m.actor || 'user';\n  const content = m.memory || m.content || m.text || '';\n  return `${role}: ${content}`;\n}).join('\\n') || '(none available)';\n\nconst prompt = `You are a medical assistant for Altibbi. Respond in the SAME language the user's latest message is written in (Arabic or English) - match it exactly, do not switch languages and do not mix languages.\n\nAnswer the user's question using ONLY the context below, taken from Altibbi articles. If the context doesn't contain enough information to answer safely, say so clearly and recommend seeing a doctor.\n\nNever recommend or name a specific doctor yourself. If (and only if) the user's latest message describes a personal symptom or health complaint, end your written answer with one short, natural follow-up question offering to suggest a specialist doctor near them in Jordan. Do not offer this for general or informational questions that aren't about the user's own health, and do not repeat the offer if you can see below that you already made it and are waiting on an answer.\n\nYour own immediately preceding reply in this conversation (this is reliable and current -- use this specifically to judge whether you just made a doctor-offer that the user's latest message might now be confirming, or whether you're already mid-way through a doctor-related exchange):\n${lastBotMessage || '(none - this is the first message in the conversation)'}\n\nOlder conversation history, for general background only (may be incomplete or delayed, do not use this alone to judge whether an offer was just made):\n${olderHistory}\n\nContext:\n${context}\n\nUser's latest message: ${question}\n\nReply with ONLY a raw JSON object (no markdown fences, no extra text, no trailing commentary) with exactly these fields:\n{\n  \"answer\": \"your full written answer, in the user's language, including the follow-up question if applicable\",\n  \"language\": \"ar or en\",\n  \"doctor_relevant\": true or false,\n  \"confirmed_doctor_request\": true or false,\n  \"specialty_query\": \"the medical specialty to search for, in Arabic, matching how Jordanian clinics label specialties (e.g. \"جلدية\", \"قلب\", \"أطفال\") - empty string if not applicable\"\n}\n\nSet \"confirmed_doctor_request\" to true if EITHER of these is true: (a) your immediately preceding reply above already offered a doctor recommendation and the user's latest message is agreeing to it (e.g. \"yes\", \"نعم\", \"ok please\"), OR (b) the user's latest message is itself a direct request for a doctor/specialist recommendation, even with no prior offer (e.g. \"can you recommend a doctor\", \"I need a doctor\", \"أعطني دكتور\", \"دكتور من فضلك\"). Otherwise false. When true, set \"specialty_query\" based on the most relevant condition or symptom discussed anywhere in this conversation so far (your preceding reply and the older history above, plus the latest message) - not only the latest message, since a direct request like \"can you recommend a doctor\" may not repeat the symptom itself.`;\n\nreturn [{ json: { prompt, question } }];\n"
+      },
+      "id": "f2a52137-72ab-4c3a-8427-8b62159c68ae",
+      "name": "Build RAG Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "YOUR_GEMINI_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: $json.prompt } ] } ] }) }}",
+        "options": {}
+      },
+      "id": "5142913a-3336-41d2-a1b3-583e3965713c",
+      "name": "Gemini Answer (RAG)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -224,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { reply: $json.candidates[0].content.parts[0].text, session_id: $('Webhook').first().json.body.session_id } }}",
+        "options": {}
+      },
+      "id": "0c04b325-6e77-43d1-ae7f-03c1c04c9f9c",
+      "name": "Respond - Chat Answer",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2464,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cee3d143-0a87-4543-bb93-9958d07a59be",
+              "leftValue": "={{ $('Webhook').item.json.body.message }}",
+              "rightValue": "/end",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        0
+      ],
+      "id": "8aded0cb-d8be-4c39-a251-14aee8a3d8b6",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cee3d143-0a87-4543-bb93-9958d07a59be",
+              "leftValue": "={{ $('Webhook').item.json.body.message }}",
+              "rightValue": "/end",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        576
+      ],
+      "id": "4bd8e2a8-12e3-4c65-91de-d4b498dce9d7",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mem0.ai/v1/memories/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token YOUR_MEM0_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  messages: [\n    { role: \"user\", content: $('Webhook').item.json.body.message || \"Uploaded a medical test report for analysis\" },\n    { role: \"assistant\", content: $json.candidates[0].content.parts[0].text }\n  ],\n  user_id: $('Webhook').item.json.body.session_id\n}) }}",
+        "options": {}
+      },
+      "id": "75d4e252-008a-4e87-abb0-48ee1423ecf7",
+      "name": "Save Turn to Mem0 (File)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        192
+      ],
+      "notes": "Fire-and-forget: logs this file-analysis turn to mem0. Replace YOUR_MEM0_API_KEY. Verify the exact request schema against mem0's current API docs."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mem0.ai/v1/memories/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token YOUR_MEM0_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  messages: [\n    { role: \"user\", content: $('Webhook').item.json.body.message },\n    { role: \"assistant\", content: $json.candidates[0].content.parts[0].text }\n  ],\n  user_id: $('Webhook').item.json.body.user_id || $('Webhook').item.json.body.session_id\n}) }}",
+        "options": {}
+      },
+      "id": "f58fa56f-b479-41d4-9930-d69d1cc4cc4a",
+      "name": "Save Turn to Mem0 (Chat)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2016,
+        672
+      ],
+      "notes": "Fire-and-forget: logs this RAG chat turn to mem0. Replace YOUR_MEM0_API_KEY. Verify the exact request schema against mem0's current API docs."
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mem0.ai/v1/memories/?user_id={{ $('Webhook').item.json.body.session_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token YOUR_MEM0_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ff77a774-97f9-4297-89d2-f2c7c12f2dd4",
+      "name": "Get History from Mem0",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2464,
+        0
+      ],
+      "alwaysOutputData": true,
+      "notes": "Fetches the full stored conversation for this session so it can be summarized. Replace YOUR_MEM0_API_KEY. Run this alone first and check the real response shape (field name may be 'results', 'memories', or something else) - then adjust 'Build Summary Prompt' to match."
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst historyText = items.map(i => i.json.memory || i.json.text || i.json.content || JSON.stringify(i.json)).join('\\n');\n\nconst prompt = `You are summarizing a full medical conversation for a user.\n\nFirst, detect the primary language the user was writing in throughout the conversation below (e.g. Arabic, English, or a mix). Then write the ENTIRE summary in that same language, matching the user's own language naturally (if they wrote in Arabic, respond in clear, simple Arabic; if English, respond in English; if mixed, use whichever language dominates).\n\nDo NOT mention, announce, or label which language you detected or are writing in anywhere in your output (no \"Primary Language Detected\", no \"Language: English\", no notes about this at all) -- just write the summary directly in that language.\n\nOutput the summary as clean HTML only (no Markdown like ** or ### or ---), using only these tags where needed: <h3> for headings, <p> for paragraphs, <ul><li> for lists, <strong> for emphasis. Do not add <html> or <body> tags or any Markdown syntax — just raw HTML content ready to be placed inside an email.\n\nDo not include any preamble, meta-commentary, or notes about your process — output only the summary content itself.\n\nThe summary must include:\n- The main topics discussed\n- The key questions the user asked and their answers\n- Any recommendation to see a doctor, if mentioned\n\nConversation transcript:\n${historyText}`;\n\nreturn [{ json: { prompt } }];"
+      },
+      "id": "0bd34526-56f6-41be-aa0d-8ca8e1bff8b3",
+      "name": "Build Summary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        0
+      ],
+      "notes": "Joins the mem0 history into one text block and builds the Arabic summarization prompt. Adjust field names (m.memory / m.text / m.content) once you've confirmed mem0's real response shape."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "YOUR_GEMINI_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: $json.prompt } ] } ] }) }}",
+        "options": {}
+      },
+      "id": "c5cb1c1c-1ac5-4145-9f00-b702132e487f",
+      "name": "Summarize Whole Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2912,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.candidates[0].content.parts[0].text;\nlet html = raw.replace(/^```html\\s*/i, '').replace(/```\\s*$/i, '').trim();\n\n// add these two lines here:\nhtml = html.replace(/<[^>]*>\\s*(primary\\s+)?language\\s*(detected)?\\s*:?\\s*(english|arabic|mixed)?\\s*<\\/[^>]*>/gi, '');\nhtml = html.replace(/^\\s*(primary\\s+)?language\\s*(detected)?\\s*:?\\s*(english|arabic|mixed)\\s*$/gim, '');\n\nconst arabicChars = (raw.match(/[\\u0600-\\u06FF]/g) || []).length;\nconst isArabic = arabicChars > raw.length * 0.15;\n\nconst dir = isArabic ? 'rtl' : 'ltr';\nconst align = isArabic ? 'right' : 'left';\nconst headerTitle = isArabic ? 'ملخص محادثتك الطبية' : 'Your Medical Conversation Summary';\nconst footerText = isArabic\n  ? 'هذا الملخص لأغراض إعلامية فقط ولا يغني عن استشارة الطبيب.'\n  : 'This summary is for informational purposes only and does not replace consulting a doctor.';\nconst emailSubject = isArabic ? 'ملخص محادثتك الطبية' : 'Your Medical Conversation Summary';\n\nconst wrapped = `\n<div dir=\"${dir}\" style=\"font-family: Arial, sans-serif; line-height: 1.8; color: #222222; max-width: 600px; margin: 0 auto; padding: 24px; background: #f9f9f7; border-radius: 8px; border: 1px solid #e2e2de; text-align: ${align};\">\n  <div style=\"background: #0f6e56; color: #ffffff; padding: 16px 24px; border-radius: 8px 8px 0 0; margin: -24px -24px 20px -24px;\">\n    <h2 style=\"margin:0; font-size: 20px; font-weight: 500;\">${headerTitle}</h2>\n  </div>\n  <div style=\"font-size: 15px;\">${html}</div>\n  <hr style=\"border:none; border-top:1px solid #ddd; margin: 24px 0;\">\n  <p style=\"font-size: 12px; color: #888888; text-align:center; margin:0;\">${footerText}</p>\n</div>`;\n\nreturn [{ json: { emailHtml: wrapped, emailSubject: emailSubject } }];"
+      },
+      "id": "2f836970-f0ec-4cfb-ad20-40218809f2bd",
+      "name": "Format Email HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        0
+      ],
+      "notes": "Strips any stray markdown fences from Gemini's output and wraps it in a styled RTL HTML email template."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.resend.com/emails",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ from: \"Zaina Medical <onboarding@resend.dev>\", to: [ $('Webhook').item.json.body.email ], subject: $json.emailSubject + \" - \" + $now.format('dd MMM yyyy HH:mm'), html: $json.emailHtml }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3360,
+        0
+      ],
+      "id": "3978eab9-ce46-42c4-8ebf-6f44dbf8fe49",
+      "name": "Send Email (Resend)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "m4CvrHnuwFFfYqfZ",
+          "name": "Resend API"
+        }
+      },
+      "notes": "Calls the Resend API directly (no official n8n Resend node needed). Create a Header Auth credential in n8n named 'Resend API' with Header Name 'Authorization' and Value 'Bearer YOUR_RESEND_API_KEY', then select it here. Change the 'from' address once you've verified your own sending domain in Resend -- the default onboarding@resend.dev sandbox address can only send to the email you signed up to Resend with."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \n  \"text\": \n  \"Got it! I've emailed you the summary.\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3584,
+        0
+      ],
+      "id": "1e6e9aee-83b6-49fe-91ce-1544889a9c1f",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "voice-flag-check",
+              "leftValue": "={{ $('Webhook').item.json.body.voice }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7df106c6-dcef-4acf-b58c-9c940a6fd0fd",
+      "name": "Is Voice Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2016,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "YOUR_GEMINI_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: \"Rewrite the following text so it sounds like a real person speaking naturally on a phone call. Use short, warm, conversational sentences. Remove ALL markdown, asterisks, numbered lists, bullet points and headers - plain spoken sentences only, nothing a text-to-speech engine would mispronounce. Keep the exact same language as the original text and do not change or add any medical facts.\\n\\nText:\\n\" + $json.candidates[0].content.parts[0].text } ] } ] }) }}",
+        "options": {}
+      },
+      "id": "99605661-e41b-4dbe-9f94-cb43935717cd",
+      "name": "Rewrite for Speech (Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2240,
+        384
+      ],
+      "notes": "Replace YOUR_GEMINI_API_KEY. Turns the written RAG answer into a natural spoken version before TTS."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/VcpSzuUMOp4n8zcHTPut",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "YOUR_ELEVENLABS_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.candidates[0].content.parts[0].text, model_id: \"eleven_multilingual_v2\", voice_settings: { stability: 0.5, similarity_boost: 0.75 } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "6f87d5e7-103f-4620-a1d5-4bea73c30dd1",
+      "name": "ElevenLabs TTS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2464,
+        384
+      ],
+      "notes": "Replace YOUR_ELEVENLABS_API_KEY. voice_id 21m00Tcm4TlvDq8ikWAM = 'Rachel' (default premade voice). Swap for any voice_id from your ElevenLabs Voice Library. Returns binary audio/mpeg -> set 'Response Format' = File in node UI so it lands in binary data."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\n\nlet audioB64 = null;\nif (item.binary && item.binary.data) {\n  const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\n  audioB64 = buffer.toString('base64');\n}\n\nconst replyText = $('Gemini Answer (RAG)').first().json.candidates[0].content.parts[0].text;\nconst sessionId = $('Webhook').first().json.body.session_id;\n\nreturn [{ json: { reply: replyText, audio_base64: audioB64, mime_type: 'audio/mpeg', session_id: sessionId } }];"
+      },
+      "id": "561b74d8-ba5f-4c53-b621-fe91b4aaeb4a",
+      "name": "Prepare Voice Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        384
+      ],
+      "notes": "Combines the ORIGINAL written reply (for the chat bubble/log) with the base64 audio (for playback). If ElevenLabs fails/quota is hit, audio_base64 will be null and the frontend falls back to browser TTS."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "727a3893-42bb-4590-9e89-04fc55f0505c",
+      "name": "Respond - Voice Answer",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2912,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mem0.ai/v1/memories/?user_id={{ $('Webhook').item.json.body.user_id || $('Webhook').item.json.body.session_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token YOUR_MEM0_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "27dd35fe-23cb-46f9-8e82-e7946da5ced3",
+      "name": "Get Recent History (Mem0)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -672,
+        576
+      ],
+      "alwaysOutputData": true,
+      "continueOnFail": true,
+      "notes": "Fetches this session's stored turns so Gemini can tell whether the current message is a 'yes' to an earlier doctor-recommendation offer. continueOnFail so a Mem0 hiccup never breaks the chat. Response shape not fully confirmed - Build RAG Context reads defensively (tries results/memories/data)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  // Model didn't return clean JSON - fall back to the raw text as the\n  // answer so the chat still works, just without doctor-offer logic.\n  parsed = {\n    answer: raw || 'Sorry, something went wrong generating a response.',\n    language: 'en',\n    doctor_relevant: false,\n    confirmed_doctor_request: false,\n    specialty_query: ''\n  };\n}\n\nreturn [{\n  json: {\n    answer: parsed.answer || '',\n    language: parsed.language || 'en',\n    doctor_relevant: !!parsed.doctor_relevant,\n    confirmed_doctor_request: !!parsed.confirmed_doctor_request,\n    specialty_query: parsed.specialty_query || ''\n  }\n}];"
+      },
+      "id": "3d2dbfd8-cf35-4964-bec2-84f71904c1e6",
+      "name": "Parse Gemini JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "confirmed-doctor-request",
+              "leftValue": "={{ $json.confirmed_doctor_request }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "caccee41-346e-4f0d-8b67-dc4f236da305",
+      "name": "Needs Doctor Lookup?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT d.doctor_id, d.name, d.specialty, d.location, d.phone, d.about, d.profile_url,\n  (SELECT string_agg(CONCAT(a.day_name, ': ', a.from_time, '-', a.to_time), ', ' ORDER BY a.day_order)\n   FROM doctor_availability a WHERE a.doctor_id = d.doctor_id) AS hours,\n  (SELECT string_agg(i.name, ', ' ORDER BY i.name)\n   FROM doctor_insurance di JOIN insurance_companies i ON di.insurance_id = i.id\n   WHERE di.doctor_id = d.doctor_id) AS insurance\nFROM doctors d\nWHERE d.specialty = $1\nLIMIT 5",
+        "options": {
+          "queryReplacement": "={{ $json.matched_specialty }}"
+        }
+      },
+      "id": "1f656db8-91ce-4f3b-9a2a-9700f3e8cffc",
+      "name": "Query Doctors DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1344,
+        368
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "7YS7fOChZT1tookO",
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true,
+      "notes": "Now a fixed query with a real parameter ($1 = matched_specialty from 'Parse Matched Specialty') instead of raw LLM-generated SQL -- no injection risk, no 'Validate SQL' layer needed anymore. In the n8n UI, open Options and confirm the parameter field is named 'Query Parameters' (some versions label it differently) and that it's set to {{ $json.matched_specialty }}."
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((i) => i.json).filter((r) => r && r.doctor_id);\n\nconst language = $('Parse Gemini JSON').first().json.language || 'en';\nconst isArabic = language === 'ar';\n\nlet block;\nif (!rows.length) {\n  block = isArabic\n    ? '\\u0644\\u0645 \\u0623\\u062c\\u062f \\u062d\\u0627\\u0644\\u064a\\u0627\\u064b \\u0623\\u0637\\u0628\\u0627\\u0621 \\u0645\\u0637\\u0627\\u0628\\u0642\\u064a\\u0646 \\u0641\\u064a \\u0642\\u0627\\u0639\\u062f\\u0629 \\u0627\\u0644\\u0628\\u064a\\u0627\\u0646\\u0627\\u062a \\u0644\\u0647\\u0630\\u0627 \\u0627\\u0644\\u062a\\u062e\\u0635\\u0635.'\n    : \"I couldn't find a matching doctor in the database for that specialty right now.\";\n} else {\n  const lines = rows.map((d, i) => {\n    const parts = [];\n    parts.push(`${i + 1}. ${d.name || '-'} \\u2014 ${d.specialty || '-'}`);\n    if (d.location) parts.push((isArabic ? '\\u0627\\u0644\\u0645\\u0648\\u0642\\u0639: ' : 'Location: ') + d.location);\n    if (d.phone) parts.push((isArabic ? '\\u0627\\u0644\\u0647\\u0627\\u062a\\u0641: ' : 'Phone: ') + d.phone);\n    if (d.hours) parts.push((isArabic ? '\\u0645\\u0648\\u0627\\u0639\\u064a\\u062f \\u0627\\u0644\\u062f\\u0648\\u0627\\u0645: ' : 'Hours: ') + d.hours);\n    if (d.insurance) parts.push((isArabic ? '\\u0627\\u0644\\u062a\\u0623\\u0645\\u064a\\u0646 \\u0627\\u0644\\u0645\\u0642\\u0628\\u0648\\u0644: ' : 'Insurance accepted: ') + d.insurance);\n    if (d.profile_url) parts.push((isArabic ? '\\u0627\\u0644\\u0645\\u0644\\u0641 \\u0627\\u0644\\u0634\\u062e\\u0635\\u064a: ' : 'Profile: ') + d.profile_url);\n    return parts.join('\\n');\n  });\n  const intro = isArabic\n    ? '\\u0628\\u0646\\u0627\\u0621\\u064b \\u0639\\u0644\\u0649 \\u0637\\u0644\\u0628\\u0643\\u060c \\u0625\\u0644\\u064a\\u0643 \\u0628\\u0639\\u0636 \\u0627\\u0644\\u0623\\u0637\\u0628\\u0627\\u0621 \\u0627\\u0644\\u0645\\u062a\\u0627\\u062d\\u064a\\u0646 (\\u0647\\u0630\\u0647 \\u0645\\u0639\\u0644\\u0648\\u0645\\u0627\\u062a \\u0644\\u0644\\u0645\\u0633\\u0627\\u0639\\u062f\\u0629 \\u0641\\u0642\\u0637 \\u0648\\u0644\\u064a\\u0633\\u062a \\u0625\\u062d\\u0627\\u0644\\u0629 \\u0637\\u0628\\u064a\\u0629 \\u0631\\u0633\\u0645\\u064a\\u0629\\u060c \\u064a\\u0631\\u062c\\u0649 \\u0627\\u0644\\u062a\\u0623\\u0643\\u062f \\u0645\\u0646 \\u0627\\u0644\\u062d\\u062c\\u0632 \\u0645\\u0628\\u0627\\u0634\\u0631\\u0629 \\u0645\\u0639 \\u0627\\u0644\\u0639\\u064a\\u0627\\u062f\\u0629):'\n    : \"Based on what you asked, here are a few available doctors (this is informational only, not a formal referral - please confirm directly with the clinic before visiting):\";\n  block = intro + '\\n\\n' + lines.join('\\n\\n');\n}\n\nreturn [{ json: { doctorBlock: block } }];"
+      },
+      "id": "d68e8e6c-01e1-4f26-8d5b-391911b5060d",
+      "name": "Format Doctor Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse Gemini JSON').first().json;\nlet finalText = parsed.answer || '';\n\nlet doctorBlock = null;\ntry {\n  doctorBlock = $json.doctorBlock || null;\n} catch (e) {\n  doctorBlock = null;\n}\n\nif (doctorBlock) {\n  finalText = finalText + '\\n\\n' + doctorBlock;\n}\n\n// Reshaped to match a raw Gemini response so the existing downstream nodes\n// (Respond - Chat Answer, Rewrite for Speech, Save Turn to Mem0 (Chat)) keep\n// working unmodified - they all read $json.candidates[0].content.parts[0].text.\nreturn [{\n  json: {\n    candidates: [ { content: { parts: [ { text: finalText } ] } } ]\n  }\n}];"
+      },
+      "id": "62731e64-9d09-421c-b2c1-edb2667d6247",
+      "name": "Merge Doctor Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Doctor recommendation (new)\n\n1. Gemini answers the medical question AND decides if a doctor offer/confirmation applies (structured JSON).\n2. If the user just confirmed they want a doctor, a second Gemini call writes a SELECT query against the doctors DB (schema given in the prompt).\n3. 'Validate SQL' blacklists write keywords and enforces a LIMIT before anything touches Postgres - defense in depth on top of using a read-only DB role.\n4. Results are formatted with contact / hours / location / insurance and appended to the answer, in the same language as the reply.\n\n**Before this works you need to:** create a Postgres credential named 'Doctors Postgres' and select it on the 'Query Doctors DB' node. See SETUP.md.",
+        "height": 320,
+        "width": 460,
+        "color": 5
+      },
+      "id": "dec1d763-98de-49c4-bdbe-291bc1409cd0",
+      "name": "Sticky Note - Doctor Recommendation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "--SELECT DISTINCT specialty FROM doctors WHERE specialty IS NOT NULL AND specialty <> '' ORDER BY specialty;\n\nSELECT DISTINCT specialty FROM doctors WHERE specialty IS NOT NULL AND specialty <> '' ORDER BY specialty LIMIT 1",
+        "options": {}
+      },
+      "id": "0ab70732-a823-46bf-8764-6d121ead550e",
+      "name": "Get Distinct Specialties",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        448,
+        432
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "7YS7fOChZT1tookO",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "Reuses the same 'Doctors Postgres' credential as 'Query Doctors DB'. Pulls every distinct specialty value that actually exists in your data, so the next step can match against real values instead of guessing English/Arabic wording."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "YOUR_GEMINI_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: \"You are matching a patient's medical need to an exact specialty label from a fixed list.\\n\\n\" + \"Available specialties (choose ONLY from this exact list, one per line, copied exactly as written):\\n\" + $('Get Distinct Specialties').all().map(i => i.json.specialty).join('\\n') + \"\\n\\nPatient's need: \\\"\" + $('Parse Gemini JSON').first().json.specialty_query + \"\\\"\\n\\n\" + \"Reply with ONLY the single best-matching specialty exactly as it appears in the list above -- \" + \"character for character, no quotes, no explanation, no markdown fences. \" + \"If nothing in the list is a reasonable match, reply with exactly: NONE\"\n} ] } ] }) }}",
+        "options": {}
+      },
+      "id": "d1654aa3-1de2-4ec9-8602-004cd104321d",
+      "name": "Match Specialty (Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        432
+      ],
+      "executeOnce": true,
+      "notes": "Gives Gemini the real, exact specialty values from your DB (from 'Get Distinct Specialties') and asks it to pick the closest one to what the patient needs -- instead of guessing free-text for an ILIKE match. Fixes the Arabic/English wording mismatch issue."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = ($json.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();\nconst cleaned = raw.replace(/```/g, '').replace(/^[\"']|[\"']$/g, '').trim();\n\n// Re-validate against the real list rather than trusting Gemini's output blindly --\n// this also protects the parameterized query below from ever receiving something\n// that isn't a real value already present in the doctors table.\nconst validSpecialties = $('Get Distinct Specialties').all().map(i => i.json.specialty);\nconst matched = cleaned !== 'NONE' && validSpecialties.includes(cleaned);\n\nreturn [{\n  json: {\n    matched_specialty: matched ? cleaned : null,\n    specialtyMatched: matched\n  }\n}];"
+      },
+      "id": "ab5622b6-7840-44a8-b79e-446f6cdf0c00",
+      "name": "Parse Matched Specialty",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "specialty-matched-check",
+              "leftValue": "={{ $json.specialtyMatched }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7c798a4c-5318-477d-90f4-b4ff33dec5ee",
+      "name": "Specialty Matched?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        432
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Has File?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has File?": {
+      "main": [
+        [
+          {
+            "node": "Analyze Test Report (Gemini Vision)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Embed Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Test Report (Gemini Vision)": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Turn to Mem0 (File)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Query": {
+      "main": [
+        [
+          {
+            "node": "Search Zilliz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Zilliz": {
+      "main": [
+        [
+          {
+            "node": "Get Recent History (Mem0)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build RAG Context": {
+      "main": [
+        [
+          {
+            "node": "Gemini Answer (RAG)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Answer (RAG)": {
+      "main": [
+        [
+          {
+            "node": "Parse Gemini JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Get History from Mem0",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - File Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Get History from Mem0",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Chat Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get History from Mem0": {
+      "main": [
+        [
+          {
+            "node": "Build Summary Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Summary Prompt": {
+      "main": [
+        [
+          {
+            "node": "Summarize Whole Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Whole Chat": {
+      "main": [
+        [
+          {
+            "node": "Format Email HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Email (Resend)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Voice Request?": {
+      "main": [
+        [
+          {
+            "node": "Rewrite for Speech (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rewrite for Speech (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "ElevenLabs TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ElevenLabs TTS": {
+      "main": [
+        [
+          {
+            "node": "Prepare Voice Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Voice Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - Voice Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent History (Mem0)": {
+      "main": [
+        [
+          {
+            "node": "Build RAG Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gemini JSON": {
+      "main": [
+        [
+          {
+            "node": "Needs Doctor Lookup?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Doctor Lookup?": {
+      "main": [
+        [
+          {
+            "node": "Get Distinct Specialties",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Doctor Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Doctors DB": {
+      "main": [
+        [
+          {
+            "node": "Format Doctor Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Doctor Results": {
+      "main": [
+        [
+          {
+            "node": "Merge Doctor Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Doctor Reply": {
+      "main": [
+        [
+          {
+            "node": "Is Voice Request?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Turn to Mem0 (Chat)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email (Resend)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Distinct Specialties": {
+      "main": [
+        [
+          {
+            "node": "Match Specialty (Gemini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Specialty (Gemini)": {
+      "main": [
+        [
+          {
+            "node": "Parse Matched Specialty",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Matched Specialty": {
+      "main": [
+        [
+          {
+            "node": "Specialty Matched?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Specialty Matched?": {
+      "main": [
+        [
+          {
+            "node": "Query Doctors DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Doctor Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "088d381c-d3f8-470e-b457-23d9cc3bf818",
+  "meta": {
+    "instanceId": "aa63f15067d8fcc9e124f0892ae21cb7594eb3c2ffd8f15283ce4368a9670286"
+  },
+  "nodeGroups": [],
+  "id": "ULMONASQHDJjO9ag",
+  "tags": []
+}
