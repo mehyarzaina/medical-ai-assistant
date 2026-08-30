@@ -1,6 +1,6 @@
 # Altibbi AI Medical Assistant
 
-A bilingual (Arabic/English) AI-powered medical assistant built on top of Altibbi's own content and doctor network. It answers user health questions strictly from Altibbi's article library (via RAG), can be talked to by voice, can read and interpret uploaded medical reports and images, and gives the Altibbi team an admin dashboard to monitor usage and cost.
+A bilingual (Arabic/English) AI-powered medical assistant built on top of Altibbi's content and doctor network. It answers user health questions strictly from Altibbi's article library (via RAG), can be talked to by voice, can read and interpret uploaded medical reports and images, and gives an admin dashboard to monitor usage and cost.
 
 The goal is not a generic medical chatbot — it's a **trustworthy, source-grounded** assistant that only answers from Altibbi's verified content, and that can responsibly point users toward a real Altibbi doctor when appropriate.
 
