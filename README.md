@@ -98,13 +98,4 @@ The frontend uses Supabase's public **publishable/anon** key (`SUPABASE_ANON_KEY
 - `index.html` – the frontend chat UI (and, currently, the admin dashboard) with Supabase Auth wired in.
 - `N8N_medical_assistant.json` – the exportable n8n workflow implementing the RAG pipeline, file analysis, doctor lookup, TTS, and email summary logic.
 
-## Roadmap / open items
 
-- [ ] Split the single-page app into separate user and admin UIs
-- [ ] Wire up Google OAuth sign-in end to end for regular users
-- [ ] Gate the admin dashboard behind Supabase email/password auth
-- [ ] Auto-detect and match reply language (Arabic/English) to the user's input
-- [ ] Move chat-summary emails to Resend with a verified sending domain, using the signed-in user's email instead of asking for it
-- [ ] Build the n8n pipeline to populate and keep the Postgres doctors table in sync
-- [ ] Implement natural-language-to-SQL query generation for doctor search
-- [ ] Enforce the "no direct doctor recommendation" policy as a structured follow-up prompt rather than an inline answer
