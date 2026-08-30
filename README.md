@@ -22,7 +22,7 @@ The goal is not a generic medical chatbot — it's a **trustworthy, source-groun
 - **Admin sign-in** via email + password (also through Supabase Auth), gating access to the dashboard.
 - **Automatic language matching** — if the user writes in Arabic, the assistant replies in Arabic; if in English, it replies in English.
 - **Email chat summaries via Resend** — sent from a dedicated sending domain/address rather than a personal inbox, using the address the user signed in with (no more asking the user to type their email into the chat).
-- **A structured doctors database** (name, specialty, contact, location, working hours/دوام, etc.) in Postgres, with the scraping/sync pipeline built in n8n.
+- **A structured doctors database** (name, specialty, contact, location, working hours, insurance, etc.) in Postgres, with the scraping/sync pipeline built in n8n.
 - **Natural-language → SQL search** — user prompts about doctors are converted into SQL queries (via an LLM call, not a fixed rules engine) to search the doctors table.
 - **Responsible doctor recommendations** — the assistant does not recommend a specific doctor unprompted; it only offers to suggest one as a follow-up question after answering the user's medical question.
 
